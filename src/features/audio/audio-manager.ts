@@ -46,11 +46,16 @@ class AtharAudioManager {
                     current.ready = true;
                 }
             },
-            onloaderror: () => {
+            onloaderror: (_soundId, error) => {
                 const current = this.registry.get(cue);
                 if (current) {
                     current.failed = true;
                 }
+
+                console.warn(`[athar:audio] failed to load cue "${cue}"`, error);
+            },
+            onplayerror: (_soundId, error) => {
+                console.warn(`[athar:audio] failed to play cue "${cue}"`, error);
             },
             preload: false,
             src: [AUDIO_ASSETS[cue]],

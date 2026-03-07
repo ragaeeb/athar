@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import type { Coords, MeterOffset, TeacherConfig, TokenState } from '@/content/levels/types';
 import { atharDebugLog } from '@/features/debug/debug';
 import { recordPlayerLocationWrite } from '@/features/debug/perf-metrics';
-import { metersOffsetFromCoords } from '@/features/map/lib/geo';
+import type { SimulationPlayerState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { metersOffsetFromCoords } from '@/shared/geo';
 
 export type PlayerState = {
     coords: Coords;
@@ -31,6 +32,7 @@ export type PlayerState = {
     setScramble: (until: number, hitAt?: number) => void;
     clearExpiredHitTokens: (now: number) => void;
     initializePlayer: (coords: Coords, origin: Coords) => void;
+    syncFromSimulation: (player: SimulationPlayerState) => void;
 };
 
 const initialPlayerState = {
@@ -174,6 +176,61 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
             return {
                 lastHitAt: hitAt ?? state.lastHitAt,
                 scrambleUntil: until,
+            };
+        }),
+    syncFromSimulation: (player) =>
+        set((state) => {
+            const locationUnchanged =
+                state.coords.lat === player.coords.lat &&
+                state.coords.lng === player.coords.lng &&
+                state.positionMeters.x === player.positionMeters.x &&
+                state.positionMeters.z === player.positionMeters.z;
+            const motionUnchanged = state.bearing === player.bearing && state.speed === player.speed;
+            const runtimeUnchanged =
+                state.activeTeacher === player.activeTeacher &&
+                state.dialogueOpen === player.dialogueOpen &&
+                state.hadithTokens === player.hadithTokens &&
+                state.hitTokens === player.hitTokens &&
+                state.isHit === player.isHit &&
+                state.lastHitAt === player.lastHitAt &&
+                state.scrambleUntil === player.scrambleUntil &&
+                state.tokensLost === player.tokensLost;
+
+            if (locationUnchanged && motionUnchanged && runtimeUnchanged) {
+                return state;
+            }
+
+            atharDebugLog(
+                'store',
+                'player:syncFromSimulation',
+                {
+                    bearing: player.bearing,
+                    coords: player.coords,
+                    dialogueOpen: player.dialogueOpen,
+                    hadithTokens: player.hadithTokens,
+                    positionMeters: player.positionMeters,
+                    speed: player.speed,
+                },
+                { throttleMs: 120 },
+            );
+
+            if (!locationUnchanged) {
+                recordPlayerLocationWrite();
+            }
+
+            return {
+                activeTeacher: player.activeTeacher,
+                bearing: player.bearing,
+                coords: player.coords,
+                dialogueOpen: player.dialogueOpen,
+                hadithTokens: player.hadithTokens,
+                hitTokens: player.hitTokens,
+                isHit: player.isHit,
+                lastHitAt: player.lastHitAt,
+                positionMeters: player.positionMeters,
+                scrambleUntil: player.scrambleUntil,
+                speed: player.speed,
+                tokensLost: player.tokensLost,
             };
         }),
     updateMovement: ({ coords, positionMeters, bearing, speed }) =>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { type CharacterType, DEFAULT_CHARACTER } from '@/content/characters/characters';
+import { CHARACTER_CONFIGS, type CharacterType, DEFAULT_CHARACTER } from '@/content/characters/characters';
 import type { LevelCompletionSummary } from '@/content/levels/types';
 
 export type GameState = {
@@ -18,11 +18,64 @@ export type GameState = {
     resetProgress: () => void;
 };
 
+export type GameProgressState = {
+    currentLevel: number;
+    selectedCharacter: CharacterType;
+    totalHadithVerified: number;
+    unlockedLevels: number[];
+};
+
+export const SAVE_VERSION = 1;
+
 const persistentDefaults = {
     currentLevel: 1,
     selectedCharacter: DEFAULT_CHARACTER,
     totalHadithVerified: 0,
     unlockedLevels: [1],
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+const isCharacterType = (value: unknown): value is CharacterType =>
+    typeof value === 'string' && value in CHARACTER_CONFIGS;
+
+const normalizePositiveInteger = (value: unknown, fallback: number) => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        return fallback;
+    }
+
+    return Math.floor(value);
+};
+
+const normalizeUnlockedLevels = (value: unknown, currentLevel: number) => {
+    const levels =
+        Array.isArray(value) && value.length > 0
+            ? value
+                  .filter((entry): entry is number => typeof entry === 'number' && Number.isInteger(entry) && entry > 0)
+                  .sort((left, right) => left - right)
+            : [];
+
+    return [...new Set([1, currentLevel, ...levels])].sort((left, right) => left - right);
+};
+
+export const migrateGameProgress = (persistedState: unknown): GameProgressState => {
+    if (!isRecord(persistedState)) {
+        return persistentDefaults;
+    }
+
+    const currentLevel = normalizePositiveInteger(persistedState.currentLevel, persistentDefaults.currentLevel);
+
+    return {
+        currentLevel,
+        selectedCharacter: isCharacterType(persistedState.selectedCharacter)
+            ? persistedState.selectedCharacter
+            : persistentDefaults.selectedCharacter,
+        totalHadithVerified: normalizePositiveInteger(
+            persistedState.totalHadithVerified,
+            persistentDefaults.totalHadithVerified,
+        ),
+        unlockedLevels: normalizeUnlockedLevels(persistedState.unlockedLevels, currentLevel),
+    };
 };
 
 const createSafeStorage = () => {
@@ -83,6 +136,7 @@ export const useGameStore = create<GameState>()(
                 })),
         }),
         {
+            migrate: (persistedState) => migrateGameProgress(persistedState),
             name: 'athar-progression',
             partialize: (state) => ({
                 currentLevel: state.currentLevel,
@@ -91,6 +145,7 @@ export const useGameStore = create<GameState>()(
                 unlockedLevels: state.unlockedLevels,
             }),
             storage: createJSONStorage(createSafeStorage),
+            version: SAVE_VERSION,
         },
     ),
 );

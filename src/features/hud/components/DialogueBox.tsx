@@ -4,6 +4,9 @@ import { audioManager } from '@/features/audio/audio-manager';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { Scrim } from '@/shared/ui/Scrim';
 
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -88,43 +91,38 @@ export const DialogueBox = () => {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
-            className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-ink-950/80 p-4"
+            className="pointer-events-auto absolute inset-0 flex items-center justify-center p-4"
         >
+            <Scrim />
             <div
                 ref={dialogRef}
-                className="w-full max-w-2xl rounded-[2rem] border border-gold-400/25 bg-[#1a1410]/90 p-7 shadow-2xl"
+                className="relative z-10 w-full max-w-2xl rounded-[2rem] border border-gold-400/25 bg-[#1a1410]/90 p-7 shadow-2xl"
             >
                 <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">{teacher.city}</p>
                 <h2 id={titleId} className="mt-3 font-dialogue text-4xl text-sand-50">
                     {teacher.name}
                 </h2>
                 <p className="mt-2 text-sm uppercase tracking-[0.3em] text-sand-100/60">{teacher.title}</p>
-                <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-sand-50/8 p-5">
+                <Card tone="muted" className="mt-6 rounded-[1.5rem] bg-sand-50/8 p-5">
                     <p className="font-dialogue text-2xl leading-10 text-sand-50">{teacher.hadith}</p>
                     <p className="mt-4 text-sm text-sand-100/70">{teacher.hadithSource}</p>
-                </div>
+                </Card>
                 <p className="mt-4 text-sm text-sand-100/75">
                     Receive hadith now to preserve {currentTokens} carried tokens into your verified tally.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                    <button
-                        ref={primaryButtonRef}
-                        type="button"
-                        onClick={onReceiveHadith}
-                        className="rounded-full bg-gold-400 px-5 py-3 font-semibold text-ink-950"
-                    >
+                    <Button ref={primaryButtonRef} onClick={onReceiveHadith}>
                         Receive Hadith
-                    </button>
-                    <button
-                        type="button"
+                    </Button>
+                    <Button
                         onClick={() => {
                             useLevelStore.getState().completeTeacher(teacher.id);
                             usePlayerStore.getState().closeDialogue();
                         }}
-                        className="rounded-full border border-white/15 px-5 py-3 text-sand-50"
+                        variant="secondary"
                     >
                         Continue Athar
-                    </button>
+                    </Button>
                 </div>
             </div>
         </motion.div>

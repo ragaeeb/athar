@@ -9,6 +9,10 @@ import {
     headingBetweenCoords,
     worldDistanceInMeters,
 } from '@/features/map/lib/geo';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { Chip } from '@/shared/ui/Chip';
+import { DrawerPanel } from '@/shared/ui/DrawerPanel';
 
 import { DialogueBox } from './DialogueBox';
 import { MissionPanel } from './MissionPanel';
@@ -39,13 +43,14 @@ const Drawer = ({ side, title, open, onToggle, children }: DrawerProps) => (
     >
         <div className="flex items-start gap-3">
             {side === 'right' ? null : (
-                <button
-                    type="button"
+                <Button
                     onClick={onToggle}
-                    className="rounded-full border border-white/12 bg-ink-950/75 px-4 py-2 font-mono text-xs uppercase tracking-[0.32em] text-sand-50 shadow-xl backdrop-blur"
+                    size="sm"
+                    variant="secondary"
+                    className="font-mono text-xs uppercase tracking-[0.32em]"
                 >
                     {open ? 'Hide' : title}
-                </button>
+                </Button>
             )}
 
             <AnimatePresence initial={false}>
@@ -63,13 +68,14 @@ const Drawer = ({ side, title, open, onToggle, children }: DrawerProps) => (
             </AnimatePresence>
 
             {side === 'right' ? (
-                <button
-                    type="button"
+                <Button
                     onClick={onToggle}
-                    className="rounded-full border border-white/12 bg-ink-950/75 px-4 py-2 font-mono text-xs uppercase tracking-[0.32em] text-sand-50 shadow-xl backdrop-blur"
+                    size="sm"
+                    variant="secondary"
+                    className="font-mono text-xs uppercase tracking-[0.32em]"
                 >
                     {open ? 'Hide' : title}
-                </button>
+                </Button>
             ) : null}
         </div>
     </div>
@@ -134,23 +140,23 @@ export const HUD = ({
     return (
         <>
             <div className="pointer-events-none absolute top-4 left-24 z-20 right-4 flex justify-center lg:top-6 lg:left-32 lg:right-32">
-                <div className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-full border border-white/10 bg-ink-950/92 px-4 py-3 shadow-2xl">
+                <Card className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-full bg-ink-950/92 px-4 py-3">
                     <div className="min-w-0">
                         <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-gold-400">{level.name}</p>
                         <p className="truncate font-display text-lg text-sand-50">{level.subtitle}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-sand-50">
+                        <Chip>
                             {lockedHadith + currentTokens}/{level.winCondition.requiredHadith} hadith
-                        </div>
-                        <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-sand-50">
+                        </Chip>
+                        <Chip>
                             {teacherCount}/{level.winCondition.requiredTeachers.length} teachers
-                        </div>
-                        <div className="rounded-full border border-gold-400/25 bg-gold-400/10 px-3 py-1.5 text-sm text-gold-300">
+                        </Chip>
+                        <Chip tone="accent">
                             {objective ? `${navigation.directionLabel} ${navigation.distance}` : 'Route complete'}
-                        </div>
+                        </Chip>
                     </div>
-                </div>
+                </Card>
             </div>
 
             <Drawer
@@ -159,10 +165,10 @@ export const HUD = ({
                 open={progressOpen}
                 onToggle={() => setProgressOpen((value) => !value)}
             >
-                <div className="rounded-[1.75rem] border border-white/10 bg-ink-950/78 p-5 shadow-2xl backdrop-blur">
+                <DrawerPanel className="bg-ink-950/78">
                     <p className="font-mono text-xs uppercase tracking-[0.32em] text-gold-400">Progress</p>
                     <div className="mt-4 grid gap-3">
-                        <div className="rounded-2xl border border-white/8 bg-white/4 p-4">
+                        <Card tone="muted" className="rounded-2xl p-4">
                             <p className="font-mono text-xs uppercase tracking-[0.3em] text-sand-100/60">Hadith</p>
                             <p className="mt-2 font-mono text-3xl text-gold-400">
                                 {lockedHadith + currentTokens}/{level.winCondition.requiredHadith}
@@ -170,20 +176,20 @@ export const HUD = ({
                             <p className="mt-2 text-sm text-sand-100/75">
                                 Carrying {currentTokens} unverified, preserved total {totalVerified}
                             </p>
-                        </div>
-                        <div className="rounded-2xl border border-white/8 bg-white/4 p-4">
+                        </Card>
+                        <Card tone="muted" className="rounded-2xl p-4">
                             <p className="font-mono text-xs uppercase tracking-[0.3em] text-sand-100/60">Teachers</p>
                             <p className="mt-2 text-2xl font-semibold text-sand-50">
                                 {teacherCount}/{level.winCondition.requiredTeachers.length}
                             </p>
                             <p className="mt-2 text-sm text-sand-100/75">Required scholar encounters completed</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/8 bg-white/4 p-4">
+                        </Card>
+                        <Card tone="muted" className="rounded-2xl p-4">
                             <p className="font-mono text-xs uppercase tracking-[0.3em] text-sand-100/60">Controls</p>
                             <p className="mt-2 text-sm text-sand-100/85">Move with `WASD` or arrow keys.</p>
-                        </div>
+                        </Card>
                     </div>
-                </div>
+                </DrawerPanel>
             </Drawer>
 
             <Drawer
@@ -194,7 +200,7 @@ export const HUD = ({
             >
                 <div className="flex flex-col gap-3">
                     <MissionPanel level={level} objectives={objectives} />
-                    <div className="rounded-[1.75rem] border border-white/10 bg-ink-950/78 p-5 shadow-2xl backdrop-blur">
+                    <DrawerPanel className="bg-ink-950/78">
                         <p className="font-mono text-xs uppercase tracking-[0.32em] text-gold-400">Route</p>
                         {objective ? (
                             <>
@@ -210,7 +216,7 @@ export const HUD = ({
                         ) : (
                             <p className="mt-3 text-sm text-sand-100/75">All visible objectives are complete.</p>
                         )}
-                    </div>
+                    </DrawerPanel>
                 </div>
             </Drawer>
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { LevelConfig, NextObjective, ObjectiveStatus, TokenState } from '@/content/levels/types';
-import { generateClusterTokens } from '@/features/map/lib/geo';
+import type { SimulationLevelState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { generateClusterTokens } from '@/shared/geo';
 
 const buildObjectives = (
     config: LevelConfig,
@@ -54,6 +55,7 @@ export type LevelState = {
     addScatteredTokens: (tokens: TokenState[]) => void;
     pruneExpiredTokens: (now: number) => void;
     setComplete: (value: boolean) => void;
+    syncFromSimulation: (levelState: SimulationLevelState) => void;
 };
 
 const initialLevelState = {
@@ -210,6 +212,37 @@ export const useLevelStore = create<LevelState>()((set) => ({
             }
 
             return { nextObjective };
+        }),
+    syncFromSimulation: (levelState) =>
+        set((state) => {
+            const nextObjective =
+                objectivesMatch(state.nextObjective, levelState.nextObjective) &&
+                state.nextObjective !== null &&
+                levelState.nextObjective !== null
+                    ? state.nextObjective
+                    : levelState.nextObjective;
+
+            if (
+                state.completedMilestoneIds === levelState.completedMilestoneIds &&
+                state.completedTeacherIds === levelState.completedTeacherIds &&
+                state.isComplete === levelState.isComplete &&
+                state.lockedHadith === levelState.lockedHadith &&
+                state.objectives === levelState.objectives &&
+                state.tokens === levelState.tokens &&
+                state.nextObjective === nextObjective
+            ) {
+                return state;
+            }
+
+            return {
+                completedMilestoneIds: levelState.completedMilestoneIds,
+                completedTeacherIds: levelState.completedTeacherIds,
+                isComplete: levelState.isComplete,
+                lockedHadith: levelState.lockedHadith,
+                nextObjective,
+                objectives: levelState.objectives,
+                tokens: levelState.tokens,
+            };
         }),
 }));
 
