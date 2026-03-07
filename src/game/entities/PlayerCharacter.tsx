@@ -76,6 +76,7 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
         () => animationNames.find((name) => animationNameMatches(name, [/idle/i, /stand/i])) ?? null,
         [animationNames],
     );
+    const activeAnimationName = speed > 0 ? locomotionAnimation : idleAnimation;
 
     useEffect(() => {
         atharDebugLog('player', 'model-loaded', {
@@ -89,11 +90,6 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
     }, [modelPath, validAnimations]);
 
     useEffect(() => {
-        for (const action of Object.values(actions)) {
-            action?.stop();
-        }
-
-        const activeAnimationName = speed > 0 ? locomotionAnimation : idleAnimation;
         atharDebugLog(
             'player',
             'animation-selection',
@@ -106,6 +102,12 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
             },
             { throttleMs: 120 },
         );
+    }, [actions, activeAnimationName, idleAnimation, locomotionAnimation, speed]);
+
+    useEffect(() => {
+        for (const action of Object.values(actions)) {
+            action?.stop();
+        }
 
         if (!activeAnimationName) {
             return;
@@ -123,7 +125,19 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
         return () => {
             activeAction.fadeOut(0.2);
         };
-    }, [actions, idleAnimation, locomotionAnimation, speed]);
+    }, [actions, activeAnimationName]);
+
+    useEffect(() => {
+        atharDebugLog(
+            'player',
+            'animation-state',
+            {
+                activeAnimationName,
+                speed,
+            },
+            { throttleMs: 120 },
+        );
+    }, [activeAnimationName, speed]);
 
     return <primitive object={scene} scale={1.55} position={[0, -1.3, 0]} rotation={[0, 0, 0]} />;
 };
