@@ -89,6 +89,7 @@ export const generateClusterTokens = (clusters: HadithTokenCluster[]): TokenStat
             return {
                 anchor: cluster.center,
                 bounceSeed: index * 1.3,
+                clusterId: cluster.id,
                 collected: false,
                 coords: offsetCoords(cluster.center, localOffsetMeters),
                 expiresAt: null,
@@ -112,6 +113,7 @@ export const generateScatterTokens = (center: Coords, count: number, expiresAt: 
         return {
             anchor: center,
             bounceSeed: index * 0.8,
+            clusterId: null,
             collected: false,
             coords: offsetCoords(center, localOffsetMeters),
             expiresAt,
@@ -125,8 +127,9 @@ export const generateScatterTokens = (center: Coords, count: number, expiresAt: 
 export const getSunLightPosition = (coords: Coords, lighting: LightingConfig) => {
     const sampleDate = new Date(Date.UTC(860, 5, 1, lighting.hour, lighting.minute, 0));
     const sun = SunCalc.getPosition(sampleDate, coords.lat, coords.lng);
+    const azimuthFromNorth = sun.azimuth + Math.PI;
     const distance = 180;
     const altitude = Math.max(Math.sin(sun.altitude), 0.2) * 120;
 
-    return [Math.sin(sun.azimuth) * distance, altitude, Math.cos(sun.azimuth) * distance] as const;
+    return [Math.sin(azimuthFromNorth) * distance, altitude, Math.cos(azimuthFromNorth) * distance] as const;
 };

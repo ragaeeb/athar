@@ -74,7 +74,7 @@ Not like:
 
 ## Color System
 
-Current brand tokens from [styles.css](src/styles.css):
+Current brand tokens from [styles.css](../src/styles.css):
 
 - `ink-950` `#071118`
 - `ink-900` `#0c1c26`
@@ -105,7 +105,7 @@ Usage rules:
 
 ## Typography
 
-Current brand fonts from [styles.css](src/styles.css):
+Current brand fonts from [styles.css](../src/styles.css):
 
 - `font-display`: `Cinzel`
 - `font-body`: `Inter`
@@ -265,10 +265,10 @@ Expansion should still stay within the Athar core palette and tone. Add local va
 
 The current brand foundation lives primarily in:
 
-- [styles.css](src/styles.css)
-- [constants.ts](src/lib/constants.ts)
-- [index.tsx](src/routes/index.tsx)
-- [HUD.tsx](src/game/hud/HUD.tsx)
-- [CharacterSelect.tsx](src/components/CharacterSelect.tsx)
+- [styles.css](../src/styles.css)
+- [constants.ts](../src/lib/constants.ts)
+- [index.tsx](../src/routes/index.tsx)
+- [HUD.tsx](../src/game/hud/HUD.tsx)
+- [CharacterSelect.tsx](../src/components/CharacterSelect.tsx)
 
 The next cleanup pass should standardize repeated UI shells into reusable primitives so the brand is enforced by code, not just by convention.

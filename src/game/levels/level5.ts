@@ -18,7 +18,15 @@ export const level5: LevelConfig = {
     },
     lighting: { hour: 17, label: 'Golden hour', minute: 30 },
     mapStyle: MAP_STYLES.city,
-    milestones: [],
+    milestones: [
+        {
+            buildingType: 'market',
+            coords: { lat: 32.5, lng: 34.9 },
+            id: 'compilation-finale',
+            label: 'Compilation Finale',
+            missionText: 'Placeholder finale milestone for the future compilation chapter.',
+        },
+    ],
     name: 'Level 5',
     namedAreas: [],
     narrative: 'Future phase: final multi-city leg, simultaneous hazards, and the compilation ending sequence.',

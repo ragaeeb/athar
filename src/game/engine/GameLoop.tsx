@@ -3,12 +3,7 @@ import { useGameStore } from '@/game/store/game.store';
 import { useLevelStore } from '@/game/store/level.store';
 import { usePlayerStore } from '@/game/store/player.store';
 import { audioManager } from '@/lib/audio';
-import {
-    OBSTACLE_HIT_COOLDOWN_MS,
-    SCATTER_DURATION_MS,
-    SCRAMBLE_DURATION_MS,
-    TOKEN_COLLECTION_RADIUS_METERS,
-} from '@/lib/constants';
+import { OBSTACLE_HIT_COOLDOWN_MS, SCATTER_DURATION_MS, TOKEN_COLLECTION_RADIUS_METERS } from '@/lib/constants';
 import { generateScatterTokens } from '@/lib/geo';
 
 import {
@@ -23,8 +18,12 @@ import {
 export const GameLoop = () => {
     useFrame(() => {
         const now = Date.now();
-        const levelState = useLevelStore.getState();
-        const playerState = usePlayerStore.getState();
+        let levelState = useLevelStore.getState();
+        let playerState = usePlayerStore.getState();
+        const refreshState = () => {
+            levelState = useLevelStore.getState();
+            playerState = usePlayerStore.getState();
+        };
         const character = useGameStore.getState().selectedCharacter;
 
         if (!levelState.config || levelState.isComplete) {
@@ -33,6 +32,7 @@ export const GameLoop = () => {
 
         levelState.pruneExpiredTokens(now);
         playerState.clearExpiredHitTokens(now);
+        refreshState();
 
         const collectionRadius = TOKEN_COLLECTION_RADIUS_METERS * (character === 'abu-dawud' ? 1.35 : 1);
 
@@ -42,6 +42,7 @@ export const GameLoop = () => {
             usePlayerStore.getState().addToken(token.value);
             audioManager.play('collect-token');
         }
+        refreshState();
 
         if (!playerState.dialogueOpen) {
             const teacher = findTeacherEncounter(playerState.coords, levelState.config, levelState.completedTeacherIds);
@@ -49,6 +50,7 @@ export const GameLoop = () => {
             if (teacher) {
                 usePlayerStore.getState().openDialogue(teacher);
                 audioManager.play('teacher-encounter');
+                refreshState();
             }
         }
 
@@ -56,30 +58,20 @@ export const GameLoop = () => {
 
         if (milestone) {
             useLevelStore.getState().completeMilestone(milestone.id);
+            refreshState();
         }
 
         const obstacle = findTriggeredObstacle(playerState.coords, levelState.config);
         if (obstacle) {
-            if (obstacle.type === 'sandstorm') {
-                if (playerState.scrambleUntil < now + 1_000) {
-                    usePlayerStore.getState().setScramble(now + SCRAMBLE_DURATION_MS);
-                }
-            } else if (now - playerState.lastHitAt > OBSTACLE_HIT_COOLDOWN_MS && playerState.hadithTokens > 0) {
-                if (character === 'tirmidhi') {
-                    usePlayerStore.getState().setScramble(now + 2_500);
-                } else {
-                    const lostCount = Math.max(1, Math.floor(playerState.hadithTokens / 2));
-                    const scatteredTokens = generateScatterTokens(
-                        playerState.coords,
-                        lostCount,
-                        now + SCATTER_DURATION_MS,
-                    );
+            if (obstacle.type !== 'sandstorm' && now - playerState.lastHitAt > OBSTACLE_HIT_COOLDOWN_MS && playerState.hadithTokens > 0) {
+                const lostCount = Math.max(1, Math.floor(playerState.hadithTokens / 2));
+                const scatteredTokens = generateScatterTokens(playerState.coords, lostCount, now + SCATTER_DURATION_MS);
 
-                    usePlayerStore.getState().loseTokens(lostCount, scatteredTokens, now);
-                    useLevelStore.getState().addScatteredTokens(scatteredTokens);
-                    audioManager.play('obstacle-hit');
-                    audioManager.play('lose-token');
-                }
+                usePlayerStore.getState().loseTokens(lostCount, scatteredTokens, now);
+                useLevelStore.getState().addScatteredTokens(scatteredTokens);
+                audioManager.play('obstacle-hit');
+                audioManager.play('lose-token');
+                refreshState();
             }
         }
 

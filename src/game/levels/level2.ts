@@ -18,7 +18,15 @@ export const level2: LevelConfig = {
     },
     lighting: { hour: 10, label: 'Morning', minute: 0 },
     mapStyle: MAP_STYLES.city,
-    milestones: [],
+    milestones: [
+        {
+            buildingType: 'mosque',
+            coords: { lat: 24.47, lng: 39.61 },
+            id: 'madinah-finale',
+            label: 'Madinah Finale',
+            missionText: 'Placeholder finale milestone for the future Hijaz chapter.',
+        },
+    ],
     name: 'Level 2',
     namedAreas: [],
     narrative:

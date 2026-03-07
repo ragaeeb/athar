@@ -39,9 +39,8 @@ export const HadithToken = ({ token }: HadithTokenProps) => {
         <a.group ref={groupRef} position-y={spring.y} scale={spring.scale.to((value) => value * TOKEN_VISUAL_SCALE)}>
             <mesh castShadow>
                 <icosahedronGeometry args={[0.45, 0]} />
-                <meshStandardMaterial color="#f4d35e" emissive="#f4d35e" emissiveIntensity={1.3} roughness={0.2} />
+                <meshStandardMaterial color="#f4d35e" emissive="#f4d35e" emissiveIntensity={1.8} roughness={0.2} />
             </mesh>
-            <pointLight color="#f4d35e" intensity={18} distance={10} />
         </a.group>
     );
 };

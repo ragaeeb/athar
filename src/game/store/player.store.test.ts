@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { resetPlayerStore, usePlayerStore } from '@/game/store/player.store';
 import { getPerfSnapshot, resetPerfMetrics } from '@/lib/perf-metrics';

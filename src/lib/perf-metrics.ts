@@ -186,6 +186,7 @@ export const resetPerfMetrics = () => {
     }
 
     frameSamplesMs.length = 0;
+    lastManualMapInteractionAt = 0;
 
     state.camera.followCount = 0;
     state.camera.maxAppliedStepMeters = 0;

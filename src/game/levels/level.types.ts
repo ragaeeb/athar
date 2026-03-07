@@ -115,6 +115,7 @@ export type TokenState = {
     anchor: Coords;
     localOffsetMeters: MeterOffset;
     kind: TokenKind;
+    clusterId?: string | null;
     value: number;
     collected: boolean;
     expiresAt: number | null;

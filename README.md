@@ -1,5 +1,6 @@
 # Athar
 
+[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/44a7faf7-7205-43ff-b479-32abad5dfc04.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/44a7faf7-7205-43ff-b479-32abad5dfc04)
 [![Status](https://img.shields.io/badge/status-vertical%20slice-c9a227)](./docs/architecture.md)
 [![Bun](https://img.shields.io/badge/Bun-1.x-000000?logo=bun)](https://bun.sh/)
 [![React](https://img.shields.io/badge/React-19-149eca?logo=react)](https://react.dev/)

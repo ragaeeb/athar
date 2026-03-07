@@ -159,7 +159,7 @@ export const MapScene = ({ level, children }: MapSceneProps) => {
             map.off('rotatestart', markManualInteraction);
             map.off('pitchstart', markManualInteraction);
         };
-    }, [mapLoaded]);
+    }, [mapLoaded, level]);
 
     return (
         <MapLibreMap

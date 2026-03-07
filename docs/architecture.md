@@ -88,6 +88,23 @@ The current release target is a desktop-first playable slice. The long-term road
 - `src/game/store/level.store.ts`
   Active level config, objectives, tokens, completion state.
 
+## Current State Philosophy
+
+Athar currently uses Zustand heavily because it is simple and productive, but the long-term direction is more selective:
+
+- reactive Zustand state should hold committed gameplay and product state
+- transient high-frequency presentation data should not automatically become reactive app state
+- persistence, completion summaries, and any future history/undo-like systems should only see durable gameplay facts
+
+This distinction matters because not every moving value in a Three scene is meaningful application state.
+
+The same principle applies to logic placement:
+
+- React components should describe structure, lifecycle, and stable bindings
+- systems should own batched dirty-flagged or cross-entity runtime work
+
+If a behavior touches many entities, depends on dirty flags, or needs to run repeatedly during motion, it is usually a poor fit for per-entity React component logic.
+
 ### Content Layer
 
 - `src/game/levels/*.ts`
@@ -171,6 +188,79 @@ This architecture is stable enough for the current slice, but it still depends o
 
 That is workable today, but should be monitored as levels and play modes become more complex.
 
+## Planned Near-Term Architecture Shift
+
+The next major refactor is expected to formalize a simulation/presentation split.
+
+### Target split
+
+- simulation owns authoritative gameplay facts and deterministic rule evaluation
+- presentation owns per-frame interpolation, mesh transforms, animation mixers, and camera smoothing
+- React owns lifecycle, structure, and UI state
+- Zustand owns committed gameplay/product state, not every frame-by-frame value
+
+### Scene registry and non-reactive working state
+
+Athar should adopt a scene registry or equivalent presentation service that:
+
+- registers hot visual objects by stable ID
+- stores mesh refs, vectors, transient offsets, and dirty entity queues
+- allows imperative updates during movement, interpolation, dragging, or physics-like effects
+- avoids turning those values into broad reactive state changes
+
+This registry is also the right handoff point for system-owned runtime logic.
+
+Examples:
+
+- a movement/presentation system updates the player mesh and camera without forcing React rerenders
+- a geometry rebuild system processes only dirty buildings, labels, or future route props
+- an obstacle system advances relevant entities in batches instead of every entity component owning its own update path
+
+Some Zustand-managed state may still be used as an organizational home for this data, but the intended rule is:
+
+- not every value in Zustand should be reactive
+- hot transient values may be mutated and consumed internally without triggering React rerenders
+- history/persistence layers should ignore presentation-only state
+
+Examples of data that should remain presentation-only where possible:
+
+- camera interpolation targets
+- mesh-local offsets
+- animation blending state
+- temporary platform/wall offsets
+- dirty-node collections for systems processing
+- per-frame vectors or derived transform caches
+
+## Planned System Model
+
+Athar is expected to move toward a small set of explicit runtime systems.
+
+### What a system means here
+
+A system is not necessarily a full ECS framework. In Athar, a system is any dedicated runtime unit that:
+
+- runs once per frame or on explicit dirty checks
+- processes many entities or shared runtime concerns in a batch
+- consumes scene-registry refs, transient working state, or authoritative simulation state
+- updates presentation objects directly when React rerenders would be the wrong mechanism
+
+### Good candidates for systems
+
+- player movement presentation
+- camera follow
+- token animation / expiry / recovery presentation
+- obstacle behavior updates
+- future label visibility or LOD
+- future city/building geometry rebuilds
+- future combat or military AI updates
+
+### Poor candidates for per-entity React logic
+
+- expensive geometry recalculation triggered by many entity changes
+- dirty-flag scanning across collections
+- transient platform/wall/object offsets
+- repeated mesh transform updates that do not need React awareness
+
 ## Gameplay Flow
 
 The main per-frame loop currently does:
@@ -190,6 +280,8 @@ This is simple and easy to reason about, which is useful at the current stage, b
 - AI behaviors get richer
 - combat or military systems are added
 - multiple concurrent objectives become common
+
+The architectural direction is to systemize these areas before the app accumulates large amounts of per-entity React runtime logic.
 
 ## State Boundaries
 
@@ -212,6 +304,8 @@ Stored in `player.store.ts`:
 - dialogue state
 - scramble state
 - recent hit state
+
+This is currently more reactive than the desired end state. Over time, player-facing committed location and gameplay state should remain here, while purely presentational motion/interpolation data should move behind the presentation layer.
 
 ### Transient Level State
 
@@ -266,6 +360,8 @@ This is one of the reasons the repo proposal recommends more feature-oriented pa
 - `react-three-map` precision and ergonomics at country-scale distances should still be watched.
 - The current level span is large and movement speed is still compressed.
 - `GameLoop.tsx` is still a central, growing file and may become too crowded as more systems are added.
+- some hot movement/presentation values still risk being treated like general reactive store state
+- some future geometry/behavior work could easily land in React entity components when it should instead become system-owned dirty processing
 - Level content and historical text are still placeholder-heavy outside Level 1.
 - The current repo layout is serviceable but not yet ideal for long-term AI-assisted scaling.
 

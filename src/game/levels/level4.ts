@@ -18,7 +18,15 @@ export const level4: LevelConfig = {
     },
     lighting: { hour: 18, label: 'Dusk', minute: 0 },
     mapStyle: MAP_STYLES.desert,
-    milestones: [],
+    milestones: [
+        {
+            buildingType: 'caravanserai',
+            coords: { lat: 36.21, lng: 58.79 },
+            id: 'merv-finale',
+            label: 'Merv Finale',
+            missionText: 'Placeholder finale milestone for the future eastern route chapter.',
+        },
+    ],
     name: 'Level 4',
     namedAreas: [],
     narrative: 'Future phase: desert survival leg with dusk lighting and the harshest long-route hazards.',

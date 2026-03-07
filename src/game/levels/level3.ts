@@ -18,7 +18,15 @@ export const level3: LevelConfig = {
     },
     lighting: { hour: 16, label: 'Afternoon', minute: 0 },
     mapStyle: MAP_STYLES.city,
-    milestones: [],
+    milestones: [
+        {
+            buildingType: 'madrasa',
+            coords: { lat: 33.34, lng: 44.41 },
+            id: 'baghdad-finale',
+            label: 'Baghdad Finale',
+            missionText: 'Placeholder finale milestone for the future Baghdad chapter.',
+        },
+    ],
     name: 'Level 3',
     namedAreas: [],
     narrative: 'Future phase: urban Baghdad play with scholars, guards, and 3D building extrusion.',

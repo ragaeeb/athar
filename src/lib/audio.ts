@@ -24,6 +24,12 @@ class AtharAudioManager {
 
     setEnabled(value: boolean) {
         this.enabled = value;
+        if (!value) {
+            for (const { howl } of this.registry.values()) {
+                howl.stop();
+            }
+            this.ambientCue = null;
+        }
     }
 
     private ensureCue(cue: AudioCue) {

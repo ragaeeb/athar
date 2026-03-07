@@ -59,19 +59,11 @@ const createTokenClusterObjective = (config: LevelConfig, tokens: TokenState[]):
     );
 
     for (const token of tokens) {
-        if (token.collected || token.kind !== 'cluster') {
+        if (token.collected || token.kind !== 'cluster' || !token.clusterId) {
             continue;
         }
 
-        const clusterEntry = config.hadithTokenClusters.find(
-            (cluster) => cluster.center.lat === token.anchor.lat && cluster.center.lng === token.anchor.lng,
-        );
-
-        if (!clusterEntry) {
-            continue;
-        }
-
-        const existing = clusterById.get(clusterEntry.id);
+        const existing = clusterById.get(token.clusterId);
         if (existing) {
             existing.remaining += 1;
         }

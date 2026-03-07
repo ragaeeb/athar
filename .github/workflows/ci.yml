@@ -30,6 +30,11 @@ jobs:
       - name: Run unit and integration tests
         run: bun run test --coverage
 
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Run build
         run: bun run build
 
@@ -69,8 +74,3 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
           retention-days: 14
-
-      - name: Upload coverage reports to Codecov
-          uses: codecov/codecov-action@v5
-          with:
-            token: ${{ secrets.CODECOV_TOKEN }}

@@ -6,6 +6,27 @@ import { worldDistanceInMeters } from '@/lib/geo';
 import { level1 } from '../levels/level1';
 
 describe('player motion', () => {
+    it('returns a neutral no-movement result when no input is pressed', () => {
+        const positionMeters = { x: 250, z: -125 };
+        const result = resolveMovementStep({
+            delta: 1,
+            moveX: 0,
+            moveZ: 0,
+            origin: level1.origin,
+            positionMeters,
+            scrambleMultiplier: 1,
+            speed: 1_000,
+        });
+
+        expect(result.bearing).toBe(0);
+        expect(result.distanceMeters).toBe(0);
+        expect(result.nextPositionMeters).toEqual(positionMeters);
+        expect(result.nextCoords).toEqual({
+            lat: expect.any(Number),
+            lng: expect.any(Number),
+        });
+    });
+
     it('moves east in meter-space without changing latitude', () => {
         const result = resolveMovementStep({
             delta: 1,
@@ -21,6 +42,20 @@ describe('player motion', () => {
         expect(result.nextPositionMeters.z).toBeCloseTo(0, 5);
         expect(result.nextCoords.lat).toBeCloseTo(level1.origin.lat, 6);
         expect(result.nextCoords.lng).toBeGreaterThan(level1.origin.lng);
+    });
+
+    it('normalizes diagonal movement so it does not move faster than cardinal input', () => {
+        const result = resolveMovementStep({
+            delta: 1,
+            moveX: 1,
+            moveZ: 1,
+            origin: level1.origin,
+            positionMeters: { x: 0, z: 0 },
+            scrambleMultiplier: 1,
+            speed: 1_000,
+        });
+
+        expect(Math.hypot(result.nextPositionMeters.x, result.nextPositionMeters.z)).toBeCloseTo(1_000, 5);
     });
 
     it('moves west in meter-space without changing latitude', () => {

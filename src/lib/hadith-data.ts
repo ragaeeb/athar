@@ -1,8 +1,8 @@
 import type { TeacherConfig } from '@/game/levels/level.types';
 
-type TeacherProfile = Omit<TeacherConfig, 'coords'>;
+export type TeacherProfile = Omit<TeacherConfig, 'coords'>;
 
-export const TEACHER_PROFILES: Record<string, TeacherProfile> = {
+export const TEACHER_PROFILES = {
     'abdullah-ibn-yusuf': {
         city: 'Madinah',
         hadith: 'Placeholder teaching excerpt: a sound report depends on reliability, memory, and trustworthiness.',
@@ -88,14 +88,8 @@ export const TEACHER_PROFILES: Record<string, TeacherProfile> = {
         name: "Yahya ibn Ma'in",
         title: 'Hadith Critic of Baghdad',
     },
-};
+} as const satisfies Record<string, TeacherProfile>;
 
-export const getTeacherProfile = (teacherId: string): TeacherProfile => {
-    const teacher = TEACHER_PROFILES[teacherId];
+export type TeacherProfileId = keyof typeof TEACHER_PROFILES;
 
-    if (!teacher) {
-        throw new Error(`Unknown teacher profile: ${teacherId}`);
-    }
-
-    return teacher;
-};
+export const getTeacherProfile = (teacherId: TeacherProfileId): TeacherProfile => TEACHER_PROFILES[teacherId];

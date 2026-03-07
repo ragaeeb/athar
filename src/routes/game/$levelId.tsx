@@ -55,6 +55,7 @@ export const GameLevelRoute = () => {
     const navigate = useNavigate();
     const level = useMemo(() => (levelId ? getLevelById(levelId) : null), [levelId]);
     const unlockedLevels = useGameStore((state) => state.unlockedLevels);
+    const hasAccess = level ? unlockedLevels.includes(level.order) : false;
     const totalVerified = useGameStore((state) => state.totalHadithVerified);
     const teacherCount = useLevelStore((state) => state.completedTeacherIds.length);
     const milestoneCount = useLevelStore((state) => state.completedMilestoneIds.length);
@@ -69,7 +70,7 @@ export const GameLevelRoute = () => {
     useAtharDevTools(levelId);
 
     useEffect(() => {
-        if (!level || !level.playable) {
+        if (!level || !level.playable || !hasAccess) {
             return;
         }
 
@@ -81,13 +82,12 @@ export const GameLevelRoute = () => {
         return () => {
             audioManager.stopAmbient();
         };
-    }, [level]);
+    }, [hasAccess, level]);
 
     if (!level) {
         return <LockedLevelView />;
     }
 
-    const hasAccess = unlockedLevels.includes(level.order);
     if (!hasAccess) {
         return <LockedLevelView />;
     }

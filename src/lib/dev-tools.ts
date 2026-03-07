@@ -34,13 +34,16 @@ type AtharDevTools = {
     completeLevel: () => void;
     resetPerfMetrics: () => void;
     getPerfSnapshot: () => PerfSnapshot;
+    getLastPerfSnapshot: () => PerfSnapshot;
     setMapView: (view: { bearing?: number; center?: Coords; pitch?: number; zoom?: number }) => void;
-    getMapView: () => {
-        bearing: number | null;
-        center: Coords | null;
-        pitch: number | null;
-        zoom: number | null;
-    };
+    getMapView: () =>
+        | {
+              bearing: number | null;
+              center: Coords | null;
+              pitch: number | null;
+              zoom: number | null;
+          }
+        | null;
     simulatePerfFrames: (options: { durationMs: number; moveX?: number; moveZ?: number; stepMs?: number }) => void;
 };
 
@@ -69,7 +72,11 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                 useGameStore.getState().addVerifiedHadith(level.winCondition.requiredHadith);
                 useLevelStore.getState().setComplete(true);
             },
-            getMapView: () => getPerfMapViewController()?.getMapView() ?? getPerfSnapshot().map,
+            getLastPerfSnapshot: () => getPerfSnapshot(),
+            getMapView: () => {
+                const mapViewController = getPerfMapViewController();
+                return mapViewController ? mapViewController.getMapView() : null;
+            },
             getPerfSnapshot: () => {
                 const mapViewController = getPerfMapViewController();
                 if (mapViewController) {
@@ -85,7 +92,12 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                 resetPerfMetrics();
             },
             setMapView: (view) => {
-                getPerfMapViewController()?.setMapView(view);
+                const mapViewController = getPerfMapViewController();
+                if (!mapViewController) {
+                    return;
+                }
+
+                mapViewController.setMapView(view);
             },
             simulatePerfFrames: ({ durationMs, moveX = 0, moveZ = 0, stepMs = 16.67 }) => {
                 const level = getLevelById(levelId);
@@ -118,13 +130,12 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                             speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier,
                         });
 
-                        usePlayerStore.getState().setLocation(movement.nextCoords, movement.nextPositionMeters);
-                        usePlayerStore
-                            .getState()
-                            .setBearingAndSpeed(
-                                movement.bearing,
-                                BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier,
-                            );
+                        usePlayerStore.getState().updateMovement({
+                            bearing: movement.bearing,
+                            coords: movement.nextCoords,
+                            positionMeters: movement.nextPositionMeters,
+                            speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier,
+                        });
                     }
 
                     scenarioNow += stepMs;

@@ -53,6 +53,15 @@ export const resolveMovementStep = ({
     scrambleMultiplier,
     speed,
 }: MovementStepInput): MovementStepResult => {
+    if (moveX === 0 && moveZ === 0) {
+        return {
+            bearing: 0,
+            distanceMeters: 0,
+            nextCoords: offsetCoords(origin, positionMeters),
+            nextPositionMeters: { ...positionMeters },
+        };
+    }
+
     const bearing = Math.atan2(moveX * scrambleMultiplier, moveZ);
     const distanceMeters = speed * delta;
     const nextPositionMeters = {

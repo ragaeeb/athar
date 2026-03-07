@@ -7,19 +7,6 @@ type CharacterSelectProps = {
     onChange: (value: CharacterType) => void;
 };
 
-const statLabel = (character: CharacterType) => {
-    if (character === 'muslim') {
-        return 'Faster movement';
-    }
-    if (character === 'abu-dawud') {
-        return 'Wider token radius';
-    }
-    if (character === 'tirmidhi') {
-        return 'Obstacles slow instead of breaking flow';
-    }
-    return 'Balanced scholar';
-};
-
 export const CharacterSelect = ({ value, onChange }: CharacterSelectProps) => (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Object.values(CHARACTER_CONFIGS).map((character) => {
@@ -52,9 +39,7 @@ export const CharacterSelect = ({ value, onChange }: CharacterSelectProps) => (
                         />
                     </div>
                     <p className="mt-4 text-sm leading-6 text-sand-100/75">{character.description}</p>
-                    <p className="mt-4 font-mono text-xs uppercase tracking-[0.3em] text-gold-400">
-                        {statLabel(character.id)}
-                    </p>
+                    <p className="mt-4 font-mono text-xs uppercase tracking-[0.3em] text-gold-400">{character.statLabel}</p>
                 </motion.button>
             );
         })}

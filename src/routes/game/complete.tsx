@@ -27,9 +27,12 @@ export const LevelCompleteRoute = () => {
         );
     }
 
-    const nextLevel = unlockedLevels
-        .map((order) => getLevelById(`level-${order}`))
-        .find((level) => level?.order === Number(summary.levelId.split('-')[1]) + 1);
+    const completedLevel = getLevelById(summary.levelId);
+    const nextLevel = completedLevel
+        ? unlockedLevels
+              .map((order) => getLevelById(`level-${order}`))
+              .find((level) => level?.order === completedLevel.order + 1)
+        : undefined;
 
     return (
         <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">

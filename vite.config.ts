@@ -16,7 +16,6 @@ export default defineConfig({
         css: true,
         environment: 'jsdom',
         exclude: [...configDefaults.exclude, 'src/test/e2e/**'],
-        globals: true,
         setupFiles: './vitest.setup.ts',
     },
 });

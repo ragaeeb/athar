@@ -19,15 +19,21 @@ export type PlayerState = {
     lastHitAt: number;
     tokensLost: number;
     startedAt: number;
-    setCoords: (coords: Coords, origin?: Coords) => void;
+    setCoords: (coords: Coords, origin: Coords) => void;
     setLocation: (coords: Coords, positionMeters: MeterOffset) => void;
+    updateMovement: (movement: {
+        coords: Coords;
+        positionMeters: MeterOffset;
+        bearing: number;
+        speed: number;
+    }) => void;
     setBearingAndSpeed: (bearing: number, speed: number) => void;
     addToken: (count?: number) => void;
     loseTokens: (count: number, scatteredTokens: TokenState[], hitAt: number) => void;
     bankTokens: () => number;
     openDialogue: (teacher: TeacherConfig) => void;
     closeDialogue: () => void;
-    setScramble: (until: number) => void;
+    setScramble: (until: number, hitAt?: number) => void;
     clearExpiredHitTokens: (now: number) => void;
     initializePlayer: (coords: Coords, origin: Coords) => void;
 };
@@ -111,7 +117,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         }),
     setCoords: (coords, origin) =>
         set((state) => {
-            const nextPositionMeters = origin ? metersOffsetFromCoords(coords, origin) : state.positionMeters;
+            const nextPositionMeters = metersOffsetFromCoords(coords, origin);
 
             if (
                 state.coords.lat === coords.lat &&
@@ -136,6 +142,42 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
             return {
                 coords,
                 positionMeters: nextPositionMeters,
+            };
+        }),
+    updateMovement: ({ coords, positionMeters, bearing, speed }) =>
+        set((state) => {
+            const locationUnchanged =
+                state.coords.lat === coords.lat &&
+                state.coords.lng === coords.lng &&
+                state.positionMeters.x === positionMeters.x &&
+                state.positionMeters.z === positionMeters.z;
+            const motionUnchanged = state.bearing === bearing && state.speed === speed;
+
+            if (locationUnchanged && motionUnchanged) {
+                return state;
+            }
+
+            atharDebugLog(
+                'store',
+                'player:updateMovement',
+                {
+                    bearing,
+                    coords,
+                    positionMeters,
+                    speed,
+                },
+                { throttleMs: 120 },
+            );
+
+            if (!locationUnchanged) {
+                recordPlayerLocationWrite();
+            }
+
+            return {
+                bearing,
+                coords,
+                positionMeters,
+                speed,
             };
         }),
     setLocation: (coords, positionMeters) =>
@@ -165,7 +207,17 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
                 positionMeters,
             };
         }),
-    setScramble: (until) => set({ scrambleUntil: until }),
+    setScramble: (until, hitAt) =>
+        set((state) => {
+            if (state.scrambleUntil === until && (hitAt === undefined || state.lastHitAt === hitAt)) {
+                return state;
+            }
+
+            return {
+                lastHitAt: hitAt ?? state.lastHitAt,
+                scrambleUntil: until,
+            };
+        }),
 }));
 
 export const resetPlayerStore = () => {

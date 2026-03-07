@@ -109,7 +109,6 @@ export const PlayerController = () => {
 
         recordPlayerMovementTick();
 
-        const scrambleMultiplier = playerState.scrambleUntil > Date.now() ? -1 : 1;
         const speed = BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier;
         const movement = resolveMovementStep({
             delta,
@@ -117,7 +116,7 @@ export const PlayerController = () => {
             moveZ,
             origin: levelState.config.origin,
             positionMeters: playerState.positionMeters,
-            scrambleMultiplier,
+            scrambleMultiplier: 1,
             speed,
         });
         const motionSignature = [
@@ -128,8 +127,12 @@ export const PlayerController = () => {
             movement.nextPositionMeters.z.toFixed(0),
         ].join('|');
 
-        usePlayerStore.getState().setLocation(movement.nextCoords, movement.nextPositionMeters);
-        usePlayerStore.getState().setBearingAndSpeed(movement.bearing, speed);
+        usePlayerStore.getState().updateMovement({
+            bearing: movement.bearing,
+            coords: movement.nextCoords,
+            positionMeters: movement.nextPositionMeters,
+            speed,
+        });
 
         if (motionSignature !== lastMotionSignatureRef.current) {
             lastMotionSignatureRef.current = motionSignature;

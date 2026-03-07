@@ -5,6 +5,7 @@ export type CharacterConfig = {
     name: string;
     title: string;
     description: string;
+    statLabel: string;
     robeColor: string;
     accentColor: string;
     speedMultiplier: number;
@@ -66,6 +67,7 @@ export const CHARACTER_CONFIGS: Record<CharacterType, CharacterConfig> = {
         obstacleDamageMultiplier: 1,
         robeColor: '#355caa',
         speedMultiplier: 1,
+        statLabel: 'Wider token radius',
         title: 'Chain Gatherer',
         tokenRadiusMultiplier: 1.35,
     },
@@ -78,6 +80,7 @@ export const CHARACTER_CONFIGS: Record<CharacterType, CharacterConfig> = {
         obstacleDamageMultiplier: 1,
         robeColor: '#158a8a',
         speedMultiplier: 1,
+        statLabel: 'Balanced scholar',
         title: 'Canonical Scholar',
         tokenRadiusMultiplier: 1,
     },
@@ -90,6 +93,7 @@ export const CHARACTER_CONFIGS: Record<CharacterType, CharacterConfig> = {
         obstacleDamageMultiplier: 1,
         robeColor: '#a16a2d',
         speedMultiplier: 1.2,
+        statLabel: 'Faster movement',
         title: 'Swift Collector',
         tokenRadiusMultiplier: 1,
     },
@@ -102,6 +106,7 @@ export const CHARACTER_CONFIGS: Record<CharacterType, CharacterConfig> = {
         obstacleDamageMultiplier: 0.5,
         robeColor: '#6b4b3e',
         speedMultiplier: 0.95,
+        statLabel: 'Obstacles slow instead of breaking flow',
         title: 'Steadfast Critic',
         tokenRadiusMultiplier: 1,
     },

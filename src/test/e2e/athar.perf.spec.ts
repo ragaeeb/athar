@@ -39,7 +39,8 @@ type MapView = {
 type AtharPerfWindow = Window &
     typeof globalThis & {
         __atharDev__?: {
-            getMapView: () => MapView;
+            getMapView: () => MapView | null;
+            getLastPerfSnapshot: () => PerfSnapshot;
             getPerfSnapshot: () => PerfSnapshot;
             resetPerfMetrics: () => void;
             setMapView: (view: {
@@ -63,7 +64,7 @@ const waitForPerfBridge = (page: Page) =>
             Boolean((window as AtharPerfWindow).__atharDev__?.getPerfSnapshot) &&
             Boolean((window as AtharPerfWindow).__atharDev__?.getMapView) &&
             Boolean((window as AtharPerfWindow).__atharDev__?.setMapView) &&
-            Boolean((window as AtharPerfWindow).__atharDev__?.getMapView().center),
+            Boolean((window as AtharPerfWindow).__atharDev__?.getMapView()?.center),
     );
 
 const startLevelOne = async (page: Page) => {
@@ -115,7 +116,10 @@ test('@perf zoomed-out travel stays bounded', async ({ page }) => {
         });
     });
 
-    await page.waitForTimeout(1_000);
+    await page.waitForFunction(() => {
+        const view = (window as AtharPerfWindow).__atharDev__?.getMapView();
+        return Math.abs((view?.pitch ?? 0) - 58) < 0.1 && Math.abs((view?.zoom ?? 0) - 6.4) < 0.01;
+    });
 
     await page.evaluate(() => {
         (window as AtharPerfWindow).__atharDev__?.resetPerfMetrics();

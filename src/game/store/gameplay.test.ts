@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import { resolveNextObjective } from '@/game/engine/CollisionSystem';
 import { level1 } from '@/game/levels/level1';
 import { resetGameStore, useGameStore } from '@/game/store/game.store';

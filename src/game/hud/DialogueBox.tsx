@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useEffect, useId, useRef } from 'react';
 import { useGameStore } from '@/game/store/game.store';
 import { useLevelStore } from '@/game/store/level.store';
 import { usePlayerStore } from '@/game/store/player.store';
@@ -8,6 +9,58 @@ export const DialogueBox = () => {
     const teacher = usePlayerStore((state) => state.activeTeacher);
     const dialogueOpen = usePlayerStore((state) => state.dialogueOpen);
     const currentTokens = usePlayerStore((state) => state.hadithTokens);
+    const titleId = useId();
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (!teacher || !dialogueOpen) {
+            return;
+        }
+
+        previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        primaryButtonRef.current?.focus();
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                usePlayerStore.getState().closeDialogue();
+                return;
+            }
+
+            if (event.key !== 'Tab' || !dialogRef.current) {
+                return;
+            }
+
+            const focusableElements = [...dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+                .filter((element) => !element.hasAttribute('disabled'));
+
+            if (focusableElements.length === 0) {
+                return;
+            }
+
+            const first = focusableElements[0];
+            const last = focusableElements[focusableElements.length - 1];
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+                return;
+            }
+
+            if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+            previousFocusRef.current?.focus();
+        };
+    }, [dialogueOpen, teacher]);
 
     if (!teacher || !dialogueOpen) {
         return null;
@@ -24,14 +77,22 @@ export const DialogueBox = () => {
 
     return (
         <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-ink-950/80 p-4"
         >
-            <div className="w-full max-w-2xl rounded-[2rem] border border-gold-400/25 bg-[#1a1410]/90 p-7 shadow-2xl">
+            <div
+                ref={dialogRef}
+                className="w-full max-w-2xl rounded-[2rem] border border-gold-400/25 bg-[#1a1410]/90 p-7 shadow-2xl"
+            >
                 <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">{teacher.city}</p>
-                <h2 className="mt-3 font-dialogue text-4xl text-sand-50">{teacher.name}</h2>
+                <h2 id={titleId} className="mt-3 font-dialogue text-4xl text-sand-50">
+                    {teacher.name}
+                </h2>
                 <p className="mt-2 text-sm uppercase tracking-[0.3em] text-sand-100/60">{teacher.title}</p>
                 <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-sand-50/8 p-5">
                     <p className="font-dialogue text-2xl leading-10 text-sand-50">{teacher.hadith}</p>
@@ -42,6 +103,7 @@ export const DialogueBox = () => {
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                     <button
+                        ref={primaryButtonRef}
                         type="button"
                         onClick={onReceiveHadith}
                         className="rounded-full bg-gold-400 px-5 py-3 font-semibold text-ink-950"
@@ -50,7 +112,10 @@ export const DialogueBox = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => usePlayerStore.getState().closeDialogue()}
+                        onClick={() => {
+                            useLevelStore.getState().completeTeacher(teacher.id);
+                            usePlayerStore.getState().closeDialogue();
+                        }}
                         className="rounded-full border border-white/15 px-5 py-3 text-sand-50"
                     >
                         Continue Athar
