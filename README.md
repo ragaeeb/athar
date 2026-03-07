@@ -1,5 +1,6 @@
 # Athar
 
+[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/44a7faf7-7205-43ff-b479-32abad5dfc04.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/44a7faf7-7205-43ff-b479-32abad5dfc04)
 [![Status](https://img.shields.io/badge/status-vertical%20slice-c9a227)](./docs/architecture.md)
 [![Bun](https://img.shields.io/badge/Bun-1.x-000000?logo=bun)](https://bun.sh/)
 [![React](https://img.shields.io/badge/React-19-149eca?logo=react)](https://react.dev/)
@@ -8,6 +9,8 @@
 [![MapLibre](https://img.shields.io/badge/MapLibre-5.19-396cb2)](https://maplibre.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-0.183-000000?logo=three.js)](https://threejs.org/)
 [![Tests](https://img.shields.io/badge/Tests-Vitest%20%2B%20Playwright-6e9f18)](./package.json)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/ragaeeb/athar?utm_source=oss&utm_medium=github&utm_campaign=ragaeeb%2Fathar&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+[![codecov](https://codecov.io/gh/ragaeeb/athar/graph/badge.svg?token=YTX69MN0H9)](https://codecov.io/gh/ragaeeb/athar)
 
 Athar is a web-based 3D educational map game inspired by Imam al-Bukhari's travels collecting hadith across the classical Islamic world. The current build is a desktop-first vertical slice with a playable Level 1, scholar selection, token collection, teacher encounters, milestone progression, and a completion flow.
 
@@ -51,7 +54,7 @@ Then open the Vite URL shown in the terminal.
 ```bash
 bun run dev
 bun run typecheck
-bun run biome:check
+bun run lint
 bun run test
 bun run test:e2e
 bun run build
@@ -84,4 +87,4 @@ bun run build
 
 ## License / Assets
 
-Code licensing is not yet finalized in-repo. Asset licensing should be tracked per imported model or audio file before public release.
+Asset licensing is not yet finalized in-repo. Asset licensing should be tracked per imported model or audio file before public release.
