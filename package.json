@@ -73,10 +73,10 @@
         "format": "biome check --write src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
         "lint": "biome check src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
         "preview": "vite preview",
-        "test": "NODE_OPTIONS=--no-webstorage vitest run",
+        "test": "node --no-webstorage ./node_modules/vitest/vitest.mjs run",
         "test:e2e": "playwright test --grep-invert @perf",
         "test:perf": "playwright test --grep @perf",
-        "test:watch": "NODE_OPTIONS=--no-webstorage vitest",
+        "test:watch": "node --no-webstorage ./node_modules/vitest/vitest.mjs",
         "typecheck": "tsc --noEmit"
     },
     "type": "module",
