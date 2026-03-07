@@ -1,0 +1,22 @@
+export const FEATURE_FLAGS = {
+    useCharacterGlb: true,
+    useMilestoneIfc: false,
+    useTeacherGlb: false,
+} as const;
+
+export const BASE_PLAYER_SPEED_METERS_PER_SECOND = 45_000;
+export const TOKEN_COLLECTION_RADIUS_METERS = 40_000;
+export const TEACHER_INTERACTION_RADIUS_METERS = 65_000;
+export const MILESTONE_RADIUS_METERS = 90_000;
+export const OBSTACLE_TRIGGER_RADIUS_METERS = 55_000;
+export const SCRAMBLE_DURATION_MS = 5_000;
+export const SCATTER_DURATION_MS = 8_000;
+export const OBSTACLE_HIT_COOLDOWN_MS = 2_500;
+export const OBJECTIVE_GOLD_RADIUS_METERS = 50_000;
+export const PLAYER_VISUAL_SCALE = 4_000;
+export const TEACHER_VISUAL_SCALE = 4_500;
+export const TOKEN_VISUAL_SCALE = 2_600;
+export const OBSTACLE_VISUAL_SCALE = 3_500;
+export const MILESTONE_VISUAL_SCALE = 4_200;
+export const NAVIGATION_ARROW_VISUAL_SCALE = 3_200;
+export const MAP_LABEL_FONT_SIZE = 10_000;
