@@ -62,7 +62,6 @@ test('completes the deterministic level one smoke path', async ({ page }) => {
 
     await expect(page).toHaveURL(/\/game\/level-1\/complete$/);
     await expect(page.getByText(/historical note/i)).toBeVisible();
-    await page.getByRole('link', { name: /^continue athar$/i }).click();
-    await expect(page).toHaveURL(/\/game\/level-2$/);
-    await expect(page.getByText(/preview chapter/i)).toBeVisible();
+    await expect(page.getByRole('link', { name: /^continue athar$/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /return home/i })).toHaveAttribute('href', '/');
 });
