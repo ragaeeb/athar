@@ -5,6 +5,41 @@ import { useLevelStore } from '@/game/store/level.store';
 import { usePlayerStore } from '@/game/store/player.store';
 import { audioManager } from '@/lib/audio';
 
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+const getFocusableElements = (root: HTMLDivElement) =>
+    [...root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((element) => !element.hasAttribute('disabled'));
+
+const handleDialogueKeyDown = (event: KeyboardEvent, root: HTMLDivElement | null) => {
+    if (event.key === 'Escape') {
+        usePlayerStore.getState().closeDialogue();
+        return;
+    }
+
+    if (event.key !== 'Tab' || !root) {
+        return;
+    }
+
+    const focusableElements = getFocusableElements(root);
+    if (focusableElements.length === 0) {
+        return;
+    }
+
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+        return;
+    }
+
+    if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+    }
+};
+
 export const DialogueBox = () => {
     const teacher = usePlayerStore((state) => state.activeTeacher);
     const dialogueOpen = usePlayerStore((state) => state.dialogueOpen);
@@ -22,37 +57,7 @@ export const DialogueBox = () => {
         previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         primaryButtonRef.current?.focus();
 
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                usePlayerStore.getState().closeDialogue();
-                return;
-            }
-
-            if (event.key !== 'Tab' || !dialogRef.current) {
-                return;
-            }
-
-            const focusableElements = [...dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
-                .filter((element) => !element.hasAttribute('disabled'));
-
-            if (focusableElements.length === 0) {
-                return;
-            }
-
-            const first = focusableElements[0];
-            const last = focusableElements[focusableElements.length - 1];
-
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last?.focus();
-                return;
-            }
-
-            if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first?.focus();
-            }
-        };
+        const onKeyDown = (event: KeyboardEvent) => handleDialogueKeyDown(event, dialogRef.current);
 
         window.addEventListener('keydown', onKeyDown);
 

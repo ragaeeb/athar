@@ -9,7 +9,7 @@ describe('LevelCompleteRoute', () => {
         resetGameStore();
     });
 
-    it('renders the last completion summary and unlock CTA', () => {
+    it('renders the last completion summary without a continue CTA for scaffold chapters', () => {
         useGameStore.setState({
             currentLevel: 2,
             lastCompletion: {
@@ -36,6 +36,7 @@ describe('LevelCompleteRoute', () => {
 
         expect(screen.getByText(/The First Steps: Bukhara to Makkah/i)).toBeInTheDocument();
         expect(screen.getByText(/Completion narration placeholder./i)).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /continue athar/i })).toHaveAttribute('href', '/game/level-2');
+        expect(screen.queryByRole('link', { name: /continue athar/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /return home/i })).toHaveAttribute('href', '/');
     });
 });

@@ -119,7 +119,7 @@ export const generateScatterTokens = (center: Coords, count: number, expiresAt: 
             expiresAt,
             id: randomId(),
             kind: 'scattered' as const,
-            localOffsetMeters: { x: 0, z: 0 },
+            localOffsetMeters,
             value: 1,
         };
     });

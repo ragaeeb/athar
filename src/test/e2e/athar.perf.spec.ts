@@ -1,40 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-
-type PerfSnapshot = {
-    camera: {
-        followCount: number;
-        maxAppliedStepMeters: number;
-        maxDistanceFromTargetMeters: number;
-        skippedDuringCooldownCount: number;
-    };
-    frame: {
-        count: number;
-        longFramesOver100Ms: number;
-        longFramesOver34Ms: number;
-        longFramesOver50Ms: number;
-        maxDeltaMs: number;
-        p50DeltaMs: number;
-        p95DeltaMs: number;
-    };
-    map: {
-        bearing: number | null;
-        center: { lat: number; lng: number } | null;
-        manualInteractionCount: number;
-        pitch: number | null;
-        zoom: number | null;
-    };
-    player: {
-        locationWriteCount: number;
-        movementTickCount: number;
-    };
-};
-
-type MapView = {
-    bearing: number | null;
-    center: { lat: number; lng: number } | null;
-    pitch: number | null;
-    zoom: number | null;
-};
+import type { MapViewSnapshot as MapView, PerfSnapshot } from '@/lib/perf-metrics';
 
 type AtharPerfWindow = Window &
     typeof globalThis & {

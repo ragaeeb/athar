@@ -21,12 +21,7 @@ export type PlayerState = {
     startedAt: number;
     setCoords: (coords: Coords, origin: Coords) => void;
     setLocation: (coords: Coords, positionMeters: MeterOffset) => void;
-    updateMovement: (movement: {
-        coords: Coords;
-        positionMeters: MeterOffset;
-        bearing: number;
-        speed: number;
-    }) => void;
+    updateMovement: (movement: { coords: Coords; positionMeters: MeterOffset; bearing: number; speed: number }) => void;
     setBearingAndSpeed: (bearing: number, speed: number) => void;
     addToken: (count?: number) => void;
     loseTokens: (count: number, scatteredTokens: TokenState[], hitAt: number) => void;
@@ -59,7 +54,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     addToken: (count = 1) =>
         set((state) => ({
             hadithTokens: state.hadithTokens + count,
-            isHit: false,
         })),
     bankTokens: (): number => {
         const current = get().hadithTokens;
@@ -144,42 +138,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
                 positionMeters: nextPositionMeters,
             };
         }),
-    updateMovement: ({ coords, positionMeters, bearing, speed }) =>
-        set((state) => {
-            const locationUnchanged =
-                state.coords.lat === coords.lat &&
-                state.coords.lng === coords.lng &&
-                state.positionMeters.x === positionMeters.x &&
-                state.positionMeters.z === positionMeters.z;
-            const motionUnchanged = state.bearing === bearing && state.speed === speed;
-
-            if (locationUnchanged && motionUnchanged) {
-                return state;
-            }
-
-            atharDebugLog(
-                'store',
-                'player:updateMovement',
-                {
-                    bearing,
-                    coords,
-                    positionMeters,
-                    speed,
-                },
-                { throttleMs: 120 },
-            );
-
-            if (!locationUnchanged) {
-                recordPlayerLocationWrite();
-            }
-
-            return {
-                bearing,
-                coords,
-                positionMeters,
-                speed,
-            };
-        }),
     setLocation: (coords, positionMeters) =>
         set((state) => {
             if (
@@ -216,6 +174,42 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
             return {
                 lastHitAt: hitAt ?? state.lastHitAt,
                 scrambleUntil: until,
+            };
+        }),
+    updateMovement: ({ coords, positionMeters, bearing, speed }) =>
+        set((state) => {
+            const locationUnchanged =
+                state.coords.lat === coords.lat &&
+                state.coords.lng === coords.lng &&
+                state.positionMeters.x === positionMeters.x &&
+                state.positionMeters.z === positionMeters.z;
+            const motionUnchanged = state.bearing === bearing && state.speed === speed;
+
+            if (locationUnchanged && motionUnchanged) {
+                return state;
+            }
+
+            atharDebugLog(
+                'store',
+                'player:updateMovement',
+                {
+                    bearing,
+                    coords,
+                    positionMeters,
+                    speed,
+                },
+                { throttleMs: 120 },
+            );
+
+            if (!locationUnchanged) {
+                recordPlayerLocationWrite();
+            }
+
+            return {
+                bearing,
+                coords,
+                positionMeters,
+                speed,
             };
         }),
 }));

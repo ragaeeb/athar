@@ -14,6 +14,42 @@ type CharacterModelProps = {
 
 const animationNameMatches = (name: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(name));
 
+const normalizeStandardMaterial = (material: MeshStandardMaterial) => {
+    if (material.map) {
+        material.map.colorSpace = SRGBColorSpace;
+    }
+
+    material.transparent = false;
+    material.opacity = 1;
+    material.alphaTest = 0;
+    material.depthWrite = true;
+    material.side = FrontSide;
+    material.envMapIntensity = 0.8;
+    material.roughness = Math.min(material.roughness, 0.95);
+    material.metalness = Math.min(material.metalness, 0.12);
+    material.needsUpdate = true;
+};
+
+const prepareCharacterSceneNode = (child: unknown) => {
+    if (typeof child === 'object' && child !== null && 'frustumCulled' in child) {
+        child.frustumCulled = false;
+    }
+
+    if (!(child instanceof Mesh)) {
+        return;
+    }
+
+    child.castShadow = false;
+    child.receiveShadow = false;
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of materials) {
+        if (material instanceof MeshStandardMaterial) {
+            normalizeStandardMaterial(material);
+        }
+    }
+};
+
 const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
     const gltf = useGLTF(modelPath);
     const validAnimations = useMemo(
@@ -22,40 +58,7 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
     );
     const scene = useMemo(() => {
         const clonedScene = clone(gltf.scene);
-
-        clonedScene.traverse((child) => {
-            if ('frustumCulled' in child) {
-                child.frustumCulled = false;
-            }
-
-            if (!(child instanceof Mesh)) {
-                return;
-            }
-
-            child.castShadow = false;
-            child.receiveShadow = false;
-
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            for (const material of materials) {
-                if (!(material instanceof MeshStandardMaterial)) {
-                    continue;
-                }
-
-                if (material.map) {
-                    material.map.colorSpace = SRGBColorSpace;
-                }
-
-                material.transparent = false;
-                material.opacity = 1;
-                material.alphaTest = 0;
-                material.depthWrite = true;
-                material.side = FrontSide;
-                material.envMapIntensity = 0.8;
-                material.roughness = Math.min(material.roughness, 0.95);
-                material.metalness = Math.min(material.metalness, 0.12);
-                material.needsUpdate = true;
-            }
-        });
+        clonedScene.traverse(prepareCharacterSceneNode);
 
         return clonedScene;
     }, [gltf.scene]);

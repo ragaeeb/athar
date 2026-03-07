@@ -170,12 +170,11 @@ export const updateMapViewSnapshot = (view: MapViewSnapshot) => {
 };
 
 export const recordManualMapInteraction = (now = performance.now()) => {
-    if (!shouldTrackPerfMetrics) {
-        return;
-    }
-
     lastManualMapInteractionAt = now;
-    state.map.manualInteractionCount += 1;
+
+    if (shouldTrackPerfMetrics) {
+        state.map.manualInteractionCount += 1;
+    }
 };
 
 export const getLastManualMapInteractionAt = () => lastManualMapInteractionAt;

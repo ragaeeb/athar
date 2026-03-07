@@ -15,81 +15,136 @@ import {
     resolveNextObjective,
 } from './CollisionSystem';
 
+type FrameState = {
+    character: ReturnType<typeof useGameStore.getState>['selectedCharacter'];
+    levelState: ReturnType<typeof useLevelStore.getState>;
+    playerState: ReturnType<typeof usePlayerStore.getState>;
+};
+
+const readFrameState = (): FrameState => ({
+    character: useGameStore.getState().selectedCharacter,
+    levelState: useLevelStore.getState(),
+    playerState: usePlayerStore.getState(),
+});
+
+const collectNearbyTokens = (frameState: FrameState, collectionRadius: number) => {
+    const collectableTokens = findCollectableTokens(
+        frameState.playerState.coords,
+        frameState.levelState.tokens,
+        collectionRadius,
+    );
+
+    for (const token of collectableTokens) {
+        useLevelStore.getState().collectToken(token.id);
+        usePlayerStore.getState().addToken(token.value);
+        audioManager.play('collect-token');
+    }
+};
+
+const openTeacherDialogueIfNeeded = (frameState: FrameState) => {
+    if (frameState.playerState.dialogueOpen || !frameState.levelState.config) {
+        return;
+    }
+
+    const teacher = findTeacherEncounter(
+        frameState.playerState.coords,
+        frameState.levelState.config,
+        frameState.levelState.completedTeacherIds,
+    );
+
+    if (!teacher) {
+        return;
+    }
+
+    usePlayerStore.getState().openDialogue(teacher);
+    audioManager.play('teacher-encounter');
+};
+
+const completeReachedMilestoneIfNeeded = (frameState: FrameState) => {
+    if (!frameState.levelState.config) {
+        return;
+    }
+
+    const milestone = findReachedMilestone(
+        frameState.playerState.coords,
+        frameState.levelState.config,
+        frameState.levelState.completedMilestoneIds,
+    );
+
+    if (milestone) {
+        useLevelStore.getState().completeMilestone(milestone.id);
+    }
+};
+
+const applyObstacleEffectsIfNeeded = (frameState: FrameState, now: number) => {
+    if (!frameState.levelState.config) {
+        return;
+    }
+
+    const obstacle = findTriggeredObstacle(frameState.playerState.coords, frameState.levelState.config);
+    const canLoseTokens =
+        obstacle?.type !== 'sandstorm' &&
+        now - frameState.playerState.lastHitAt > OBSTACLE_HIT_COOLDOWN_MS &&
+        frameState.playerState.hadithTokens > 0;
+
+    if (!canLoseTokens) {
+        return;
+    }
+
+    const lostCount = Math.max(1, Math.floor(frameState.playerState.hadithTokens / 2));
+    const scatteredTokens = generateScatterTokens(frameState.playerState.coords, lostCount, now + SCATTER_DURATION_MS);
+
+    usePlayerStore.getState().loseTokens(lostCount, scatteredTokens, now);
+    useLevelStore.getState().addScatteredTokens(scatteredTokens);
+    audioManager.play('obstacle-hit');
+    audioManager.play('lose-token');
+};
+
 export const GameLoop = () => {
     useFrame(() => {
         const now = Date.now();
-        let levelState = useLevelStore.getState();
-        let playerState = usePlayerStore.getState();
-        const refreshState = () => {
-            levelState = useLevelStore.getState();
-            playerState = usePlayerStore.getState();
-        };
-        const character = useGameStore.getState().selectedCharacter;
+        let frameState = readFrameState();
 
-        if (!levelState.config || levelState.isComplete) {
+        if (!frameState.levelState.config || frameState.levelState.isComplete) {
             return;
         }
 
-        levelState.pruneExpiredTokens(now);
-        playerState.clearExpiredHitTokens(now);
-        refreshState();
+        frameState.levelState.pruneExpiredTokens(now);
+        frameState.playerState.clearExpiredHitTokens(now);
+        frameState = readFrameState();
 
-        const collectionRadius = TOKEN_COLLECTION_RADIUS_METERS * (character === 'abu-dawud' ? 1.35 : 1);
+        const collectionRadius = TOKEN_COLLECTION_RADIUS_METERS * (frameState.character === 'abu-dawud' ? 1.35 : 1);
+        collectNearbyTokens(frameState, collectionRadius);
+        frameState = readFrameState();
 
-        const collectableTokens = findCollectableTokens(playerState.coords, levelState.tokens, collectionRadius);
-        for (const token of collectableTokens) {
-            useLevelStore.getState().collectToken(token.id);
-            usePlayerStore.getState().addToken(token.value);
-            audioManager.play('collect-token');
-        }
-        refreshState();
+        openTeacherDialogueIfNeeded(frameState);
+        frameState = readFrameState();
 
-        if (!playerState.dialogueOpen) {
-            const teacher = findTeacherEncounter(playerState.coords, levelState.config, levelState.completedTeacherIds);
+        completeReachedMilestoneIfNeeded(frameState);
+        frameState = readFrameState();
 
-            if (teacher) {
-                usePlayerStore.getState().openDialogue(teacher);
-                audioManager.play('teacher-encounter');
-                refreshState();
-            }
-        }
-
-        const milestone = findReachedMilestone(playerState.coords, levelState.config, levelState.completedMilestoneIds);
-
-        if (milestone) {
-            useLevelStore.getState().completeMilestone(milestone.id);
-            refreshState();
-        }
-
-        const obstacle = findTriggeredObstacle(playerState.coords, levelState.config);
-        if (obstacle) {
-            if (obstacle.type !== 'sandstorm' && now - playerState.lastHitAt > OBSTACLE_HIT_COOLDOWN_MS && playerState.hadithTokens > 0) {
-                const lostCount = Math.max(1, Math.floor(playerState.hadithTokens / 2));
-                const scatteredTokens = generateScatterTokens(playerState.coords, lostCount, now + SCATTER_DURATION_MS);
-
-                usePlayerStore.getState().loseTokens(lostCount, scatteredTokens, now);
-                useLevelStore.getState().addScatteredTokens(scatteredTokens);
-                audioManager.play('obstacle-hit');
-                audioManager.play('lose-token');
-                refreshState();
-            }
+        applyObstacleEffectsIfNeeded(frameState, now);
+        frameState = readFrameState();
+        const config = frameState.levelState.config;
+        if (!config) {
+            return;
         }
 
         const nextObjective = resolveNextObjective(
-            levelState.config,
-            levelState.completedTeacherIds,
-            levelState.completedMilestoneIds,
-            levelState.tokens,
+            config,
+            frameState.levelState.completedTeacherIds,
+            frameState.levelState.completedMilestoneIds,
+            frameState.levelState.tokens,
         );
         useLevelStore.getState().setNextObjective(nextObjective);
 
         if (
             meetsWinCondition(
-                levelState.config,
-                levelState.completedTeacherIds,
-                levelState.completedMilestoneIds,
-                levelState.lockedHadith,
-                playerState.hadithTokens,
+                config,
+                frameState.levelState.completedTeacherIds,
+                frameState.levelState.completedMilestoneIds,
+                frameState.levelState.lockedHadith,
+                frameState.playerState.hadithTokens,
             )
         ) {
             useLevelStore.getState().setComplete(true);

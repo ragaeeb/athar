@@ -54,7 +54,7 @@ Then open the Vite URL shown in the terminal.
 ```bash
 bun run dev
 bun run typecheck
-bun run biome:check
+bun run lint
 bun run test
 bun run test:e2e
 bun run build
@@ -87,4 +87,4 @@ bun run build
 
 ## License / Assets
 
-Code licensing is not yet finalized in-repo. Asset licensing should be tracked per imported model or audio file before public release.
+Asset licensing is not yet finalized in-repo. Asset licensing should be tracked per imported model or audio file before public release.

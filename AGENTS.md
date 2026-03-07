@@ -43,7 +43,7 @@ The long-term intent is to expand this into a multi-level historical journey wit
 
 - `bun run dev`
 - `bun run typecheck`
-- `bun run biome:check`
+- `bun run lint`
 - `bun run test`
 - `bun run test:e2e`
 - `bun run build`

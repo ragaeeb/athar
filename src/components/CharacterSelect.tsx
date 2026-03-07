@@ -17,7 +17,12 @@ export const CharacterSelect = ({ value, onChange }: CharacterSelectProps) => (
                     type="button"
                     whileHover={{ y: -6 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => onChange(character.id)}
+                    aria-pressed={selected}
+                    onClick={() => {
+                        if (!selected) {
+                            onChange(character.id);
+                        }
+                    }}
                     className={`rounded-[1.75rem] border p-5 text-left transition ${
                         selected
                             ? 'border-gold-400/70 bg-gold-400/10 shadow-[0_0_0_1px_rgba(233,196,106,0.35)]'
@@ -39,7 +44,9 @@ export const CharacterSelect = ({ value, onChange }: CharacterSelectProps) => (
                         />
                     </div>
                     <p className="mt-4 text-sm leading-6 text-sand-100/75">{character.description}</p>
-                    <p className="mt-4 font-mono text-xs uppercase tracking-[0.3em] text-gold-400">{character.statLabel}</p>
+                    <p className="mt-4 font-mono text-xs uppercase tracking-[0.3em] text-gold-400">
+                        {character.statLabel}
+                    </p>
                 </motion.button>
             );
         })}

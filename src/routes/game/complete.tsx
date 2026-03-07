@@ -31,7 +31,7 @@ export const LevelCompleteRoute = () => {
     const nextLevel = completedLevel
         ? unlockedLevels
               .map((order) => getLevelById(`level-${order}`))
-              .find((level) => level?.order === completedLevel.order + 1)
+              .find((level) => level?.order === completedLevel.order + 1 && level.playable)
         : undefined;
 
     return (

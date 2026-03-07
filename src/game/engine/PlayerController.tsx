@@ -9,6 +9,134 @@ import { recordFrameDeltaMs, recordPlayerMovementTick } from '@/lib/perf-metrics
 import { resolveMovementStep } from './player-motion';
 
 type KeyState = Record<string, boolean>;
+type MovementInput = { moveX: number; moveZ: number };
+
+const getPressedKeys = (keyState: KeyState) => Object.keys(keyState).filter((key) => keyState[key]);
+
+const updateKeyState = (keyState: KeyState, event: KeyboardEvent, pressed: boolean, eventName: 'keydown' | 'keyup') => {
+    if (event.key.startsWith('Arrow')) {
+        event.preventDefault();
+    }
+
+    keyState[event.key] = pressed;
+    atharDebugLog(
+        'controller',
+        eventName,
+        {
+            key: event.key,
+            pressed: getPressedKeys(keyState),
+        },
+        { throttleKey: `controller:${eventName}:${event.key}`, throttleMs: 50 },
+    );
+};
+
+const getMovementInput = (keyState: KeyState): MovementInput => ({
+    moveX: (keyState.d || keyState.ArrowRight ? 1 : 0) - (keyState.a || keyState.ArrowLeft ? 1 : 0),
+    moveZ: (keyState.w || keyState.ArrowUp ? 1 : 0) - (keyState.s || keyState.ArrowDown ? 1 : 0),
+});
+
+const stopMovement = (
+    playerState: ReturnType<typeof usePlayerStore.getState>,
+    reason: 'movement-blocked' | 'movement-stop',
+    details: object,
+) => {
+    if (playerState.speed === 0) {
+        return;
+    }
+
+    usePlayerStore.getState().setBearingAndSpeed(playerState.bearing, 0);
+    atharDebugLog('controller', reason, details, { throttleMs: reason === 'movement-blocked' ? 250 : 200 });
+};
+
+const clearPressedKeys = (keyState: React.MutableRefObject<KeyState>, reason: 'blur-reset' | 'visibility-reset') => {
+    const pressedKeys = getPressedKeys(keyState.current);
+    if (pressedKeys.length === 0) {
+        return;
+    }
+
+    keyState.current = {};
+    const playerState = usePlayerStore.getState();
+    if (playerState.speed !== 0) {
+        usePlayerStore.getState().setBearingAndSpeed(playerState.bearing, 0);
+    }
+
+    atharDebugLog('controller', reason, { pressed: pressedKeys }, { throttleMs: 50 });
+};
+
+const applyMovement = ({
+    characterSpeedMultiplier,
+    delta,
+    input,
+    lastMotionSignatureRef,
+    levelOrigin,
+    playerState,
+}: {
+    characterSpeedMultiplier: number;
+    delta: number;
+    input: MovementInput;
+    lastMotionSignatureRef: { current: string };
+    levelOrigin: { lat: number; lng: number };
+    playerState: ReturnType<typeof usePlayerStore.getState>;
+}) => {
+    recordPlayerMovementTick();
+
+    const speed = BASE_PLAYER_SPEED_METERS_PER_SECOND * characterSpeedMultiplier;
+    const movement = resolveMovementStep({
+        delta,
+        moveX: input.moveX,
+        moveZ: input.moveZ,
+        origin: levelOrigin,
+        positionMeters: playerState.positionMeters,
+        scrambleMultiplier: 1,
+        speed,
+    });
+    const motionSignature = [
+        input.moveX,
+        input.moveZ,
+        movement.bearing.toFixed(3),
+        movement.nextPositionMeters.x.toFixed(0),
+        movement.nextPositionMeters.z.toFixed(0),
+    ].join('|');
+
+    usePlayerStore.getState().updateMovement({
+        bearing: movement.bearing,
+        coords: movement.nextCoords,
+        positionMeters: movement.nextPositionMeters,
+        speed,
+    });
+
+    if (motionSignature !== lastMotionSignatureRef.current) {
+        lastMotionSignatureRef.current = motionSignature;
+        atharDebugLog(
+            'controller',
+            'movement-change',
+            {
+                bearing: movement.bearing,
+                coords: movement.nextCoords,
+                delta,
+                moveX: input.moveX,
+                moveZ: input.moveZ,
+                positionMeters: movement.nextPositionMeters,
+                speed,
+            },
+            { throttleMs: 80 },
+        );
+        return;
+    }
+
+    atharDebugLog(
+        'controller',
+        'movement-tick',
+        {
+            bearing: movement.bearing,
+            coords: movement.nextCoords,
+            moveX: input.moveX,
+            moveZ: input.moveZ,
+            positionMeters: movement.nextPositionMeters,
+        },
+        { throttleMs: 200 },
+    );
+};
 
 export const PlayerController = () => {
     const keyState = useRef<KeyState>({});
@@ -22,46 +150,34 @@ export const PlayerController = () => {
                 return;
             }
 
-            if (event.key.startsWith('Arrow')) {
-                event.preventDefault();
-            }
-
-            keyState.current[event.key] = true;
-            atharDebugLog(
-                'controller',
-                'keydown',
-                {
-                    key: event.key,
-                    pressed: Object.keys(keyState.current).filter((key) => keyState.current[key]),
-                },
-                { throttleKey: `controller:keydown:${event.key}`, throttleMs: 50 },
-            );
+            updateKeyState(keyState.current, event, true, 'keydown');
         };
 
         const onKeyUp = (event: KeyboardEvent) => {
-            if (event.key.startsWith('Arrow')) {
-                event.preventDefault();
-            }
+            updateKeyState(keyState.current, event, false, 'keyup');
+        };
 
-            keyState.current[event.key] = false;
-            atharDebugLog(
-                'controller',
-                'keyup',
-                {
-                    key: event.key,
-                    pressed: Object.keys(keyState.current).filter((key) => keyState.current[key]),
-                },
-                { throttleKey: `controller:keyup:${event.key}`, throttleMs: 50 },
-            );
+        const onWindowBlur = () => {
+            clearPressedKeys(keyState, 'blur-reset');
+        };
+
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                clearPressedKeys(keyState, 'visibility-reset');
+            }
         };
 
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
+        window.addEventListener('blur', onWindowBlur);
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
             atharDebugLog('controller', 'unmounted');
             window.removeEventListener('keydown', onKeyDown);
             window.removeEventListener('keyup', onKeyUp);
+            window.removeEventListener('blur', onWindowBlur);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
         };
     }, []);
 
@@ -74,96 +190,29 @@ export const PlayerController = () => {
         const characterConfig = CHARACTER_CONFIGS[useGameStore.getState().selectedCharacter];
 
         if (!levelState.config || levelState.isComplete || playerState.dialogueOpen) {
-            if (playerState.speed !== 0) {
-                usePlayerStore.getState().setBearingAndSpeed(playerState.bearing, 0);
-                atharDebugLog(
-                    'controller',
-                    'movement-blocked',
-                    {
-                        dialogueOpen: playerState.dialogueOpen,
-                        isComplete: levelState.isComplete,
-                        levelReady: Boolean(levelState.config),
-                    },
-                    { throttleMs: 250 },
-                );
-            }
-
+            stopMovement(playerState, 'movement-blocked', {
+                dialogueOpen: playerState.dialogueOpen,
+                isComplete: levelState.isComplete,
+                levelReady: Boolean(levelState.config),
+            });
             return;
         }
 
-        const moveX =
-            (keyState.current.d || keyState.current.ArrowRight ? 1 : 0) -
-            (keyState.current.a || keyState.current.ArrowLeft ? 1 : 0);
-        const moveZ =
-            (keyState.current.w || keyState.current.ArrowUp ? 1 : 0) -
-            (keyState.current.s || keyState.current.ArrowDown ? 1 : 0);
+        const movementInput = getMovementInput(keyState.current);
 
-        if (moveX === 0 && moveZ === 0) {
-            if (playerState.speed !== 0) {
-                usePlayerStore.getState().setBearingAndSpeed(playerState.bearing, 0);
-                atharDebugLog('controller', 'movement-stop', { coords: playerState.coords }, { throttleMs: 200 });
-            }
-
+        if (movementInput.moveX === 0 && movementInput.moveZ === 0) {
+            stopMovement(playerState, 'movement-stop', { coords: playerState.coords });
             return;
         }
 
-        recordPlayerMovementTick();
-
-        const speed = BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier;
-        const movement = resolveMovementStep({
+        applyMovement({
+            characterSpeedMultiplier: characterConfig.speedMultiplier,
             delta,
-            moveX,
-            moveZ,
-            origin: levelState.config.origin,
-            positionMeters: playerState.positionMeters,
-            scrambleMultiplier: 1,
-            speed,
+            input: movementInput,
+            lastMotionSignatureRef,
+            levelOrigin: levelState.config.origin,
+            playerState,
         });
-        const motionSignature = [
-            moveX,
-            moveZ,
-            movement.bearing.toFixed(3),
-            movement.nextPositionMeters.x.toFixed(0),
-            movement.nextPositionMeters.z.toFixed(0),
-        ].join('|');
-
-        usePlayerStore.getState().updateMovement({
-            bearing: movement.bearing,
-            coords: movement.nextCoords,
-            positionMeters: movement.nextPositionMeters,
-            speed,
-        });
-
-        if (motionSignature !== lastMotionSignatureRef.current) {
-            lastMotionSignatureRef.current = motionSignature;
-            atharDebugLog(
-                'controller',
-                'movement-change',
-                {
-                    bearing: movement.bearing,
-                    coords: movement.nextCoords,
-                    delta,
-                    moveX,
-                    moveZ,
-                    positionMeters: movement.nextPositionMeters,
-                    speed,
-                },
-                { throttleMs: 80 },
-            );
-        } else {
-            atharDebugLog(
-                'controller',
-                'movement-tick',
-                {
-                    bearing: movement.bearing,
-                    coords: movement.nextCoords,
-                    moveX,
-                    moveZ,
-                    positionMeters: movement.nextPositionMeters,
-                },
-                { throttleMs: 200 },
-            );
-        }
     });
 
     return null;

@@ -36,18 +36,166 @@ type AtharDevTools = {
     getPerfSnapshot: () => PerfSnapshot;
     getLastPerfSnapshot: () => PerfSnapshot;
     setMapView: (view: { bearing?: number; center?: Coords; pitch?: number; zoom?: number }) => void;
-    getMapView: () =>
-        | {
-              bearing: number | null;
-              center: Coords | null;
-              pitch: number | null;
-              zoom: number | null;
-          }
-        | null;
+    getMapView: () => {
+        bearing: number | null;
+        center: Coords | null;
+        pitch: number | null;
+        zoom: number | null;
+    } | null;
     simulatePerfFrames: (options: { durationMs: number; moveX?: number; moveZ?: number; stepMs?: number }) => void;
 };
 
 type AtharDevWindow = Window & typeof globalThis & { __atharDev__?: AtharDevTools };
+
+const validatePerfSimulationOptions = (options: {
+    durationMs: number;
+    moveX?: number;
+    moveZ?: number;
+    stepMs?: number;
+}) => {
+    if (!Number.isFinite(options.stepMs ?? 16.67) || (options.stepMs ?? 16.67) <= 0) {
+        throw new Error('stepMs must be a finite number greater than 0');
+    }
+    if (!Number.isFinite(options.durationMs) || options.durationMs < 0) {
+        throw new Error('durationMs must be a finite number greater than or equal to 0');
+    }
+};
+
+const applySimulatedMovementStep = ({
+    characterSpeedMultiplier,
+    delta,
+    moveX,
+    moveZ,
+    origin,
+    playerState,
+    scenarioEpochNow,
+}: {
+    characterSpeedMultiplier: number;
+    delta: number;
+    moveX: number;
+    moveZ: number;
+    origin: Coords;
+    playerState: ReturnType<typeof usePlayerStore.getState>;
+    scenarioEpochNow: number;
+}) => {
+    if (moveX === 0 && moveZ === 0) {
+        return;
+    }
+
+    recordPlayerMovementTick();
+
+    const movement = resolveMovementStep({
+        delta,
+        moveX,
+        moveZ,
+        origin,
+        positionMeters: playerState.positionMeters,
+        scrambleMultiplier: playerState.scrambleUntil > scenarioEpochNow ? -1 : 1,
+        speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterSpeedMultiplier,
+    });
+
+    usePlayerStore.getState().updateMovement({
+        bearing: movement.bearing,
+        coords: movement.nextCoords,
+        positionMeters: movement.nextPositionMeters,
+        speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterSpeedMultiplier,
+    });
+};
+
+const applySimulatedCameraFollow = ({
+    delta,
+    mapViewController,
+    scenarioNow,
+}: {
+    delta: number;
+    mapViewController: NonNullable<ReturnType<typeof getPerfMapViewController>>;
+    scenarioNow: number;
+}) => {
+    const currentMapView = mapViewController.getMapView();
+    if (!currentMapView.center) {
+        return;
+    }
+
+    const autoFollowEnabled = shouldAutoFollowCamera({
+        cooldownMs: PERF_MANUAL_CAMERA_INTERACTION_COOLDOWN_MS,
+        lastManualInteractionAt: getLastManualMapInteractionAt(),
+        now: scenarioNow,
+    });
+
+    if (!autoFollowEnabled) {
+        recordCameraFollowCooldownSkip();
+        return;
+    }
+
+    const follow = resolveCameraFollow({
+        currentCenter: currentMapView.center,
+        damping: PERF_CAMERA_FOLLOW_DAMPING,
+        deadzoneMeters: PERF_CAMERA_FOLLOW_DEADZONE_METERS,
+        delta,
+        maxSpeedMetersPerSecond: PERF_CAMERA_FOLLOW_MAX_SPEED_MPS,
+        targetCoords: usePlayerStore.getState().coords,
+    });
+
+    if (!follow.moved) {
+        return;
+    }
+
+    recordCameraFollow({
+        appliedStepMeters: follow.appliedStepMeters,
+        distanceFromTargetMeters: follow.distanceFromCamera,
+    });
+    mapViewController.jumpToMapView({
+        center: follow.nextCenter,
+    });
+    updateMapViewSnapshot(mapViewController.getMapView());
+};
+
+const simulatePerfFramesForLevel = ({
+    characterId,
+    levelId,
+    options,
+}: {
+    characterId: keyof typeof CHARACTER_CONFIGS;
+    levelId: string;
+    options: { durationMs: number; moveX?: number; moveZ?: number; stepMs?: number };
+}) => {
+    validatePerfSimulationOptions(options);
+
+    const level = getLevelById(levelId);
+    const mapViewController = getPerfMapViewController();
+    if (!level || !mapViewController) {
+        return;
+    }
+
+    const { durationMs, moveX = 0, moveZ = 0, stepMs = 16.67 } = options;
+    const steps = Math.max(1, Math.ceil(durationMs / stepMs));
+    const characterConfig = CHARACTER_CONFIGS[characterId];
+    let scenarioNow = performance.now();
+    let scenarioEpochNow = Date.now();
+
+    for (let step = 0; step < steps; step += 1) {
+        const delta = stepMs / 1_000;
+        recordFrameDeltaMs(stepMs);
+
+        applySimulatedMovementStep({
+            characterSpeedMultiplier: characterConfig.speedMultiplier,
+            delta,
+            moveX,
+            moveZ,
+            origin: level.origin,
+            playerState: usePlayerStore.getState(),
+            scenarioEpochNow,
+        });
+
+        scenarioNow += stepMs;
+        scenarioEpochNow += stepMs;
+        applySimulatedCameraFollow({
+            delta,
+            mapViewController,
+            scenarioNow,
+        });
+    }
+};
 
 export const useAtharDevTools = (levelId: string | undefined) => {
     useEffect(() => {
@@ -99,86 +247,12 @@ export const useAtharDevTools = (levelId: string | undefined) => {
 
                 mapViewController.setMapView(view);
             },
-            simulatePerfFrames: ({ durationMs, moveX = 0, moveZ = 0, stepMs = 16.67 }) => {
-                const level = getLevelById(levelId);
-                const mapViewController = getPerfMapViewController();
-                if (!level || !mapViewController) {
-                    return;
-                }
-
-                const steps = Math.max(1, Math.ceil(durationMs / stepMs));
-                const characterConfig = CHARACTER_CONFIGS[useGameStore.getState().selectedCharacter];
-                let scenarioNow = performance.now();
-
-                for (let step = 0; step < steps; step += 1) {
-                    const delta = stepMs / 1_000;
-                    recordFrameDeltaMs(stepMs);
-
-                    const playerState = usePlayerStore.getState();
-                    const hasMovement = moveX !== 0 || moveZ !== 0;
-
-                    if (hasMovement) {
-                        recordPlayerMovementTick();
-
-                        const movement = resolveMovementStep({
-                            delta,
-                            moveX,
-                            moveZ,
-                            origin: level.origin,
-                            positionMeters: playerState.positionMeters,
-                            scrambleMultiplier: playerState.scrambleUntil > Date.now() ? -1 : 1,
-                            speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier,
-                        });
-
-                        usePlayerStore.getState().updateMovement({
-                            bearing: movement.bearing,
-                            coords: movement.nextCoords,
-                            positionMeters: movement.nextPositionMeters,
-                            speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterConfig.speedMultiplier,
-                        });
-                    }
-
-                    scenarioNow += stepMs;
-
-                    const currentMapView = mapViewController.getMapView();
-                    if (!currentMapView.center) {
-                        continue;
-                    }
-
-                    const autoFollowEnabled = shouldAutoFollowCamera({
-                        cooldownMs: PERF_MANUAL_CAMERA_INTERACTION_COOLDOWN_MS,
-                        lastManualInteractionAt: getLastManualMapInteractionAt(),
-                        now: scenarioNow,
-                    });
-
-                    if (!autoFollowEnabled) {
-                        recordCameraFollowCooldownSkip();
-                        continue;
-                    }
-
-                    const follow = resolveCameraFollow({
-                        currentCenter: currentMapView.center,
-                        damping: PERF_CAMERA_FOLLOW_DAMPING,
-                        deadzoneMeters: PERF_CAMERA_FOLLOW_DEADZONE_METERS,
-                        delta,
-                        maxSpeedMetersPerSecond: PERF_CAMERA_FOLLOW_MAX_SPEED_MPS,
-                        targetCoords: usePlayerStore.getState().coords,
-                    });
-
-                    if (!follow.moved) {
-                        continue;
-                    }
-
-                    recordCameraFollow({
-                        appliedStepMeters: follow.appliedStepMeters,
-                        distanceFromTargetMeters: follow.distanceFromCamera,
-                    });
-                    mapViewController.jumpToMapView({
-                        center: follow.nextCenter,
-                    });
-                    updateMapViewSnapshot(mapViewController.getMapView());
-                }
-            },
+            simulatePerfFrames: (options) =>
+                simulatePerfFramesForLevel({
+                    characterId: useGameStore.getState().selectedCharacter,
+                    levelId,
+                    options,
+                }),
             teleportToFinalMilestone: () => {
                 const level = getLevelById(levelId);
                 if (!level) {
