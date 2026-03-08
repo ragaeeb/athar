@@ -1,5 +1,6 @@
 import { useGLTF } from '@react-three/drei';
 import { Color, LinearSRGBColorSpace, MeshBasicMaterial, SRGBColorSpace } from 'three';
+import type { GLTFLoader, GLTFLoaderPlugin, GLTFParser } from 'three-stdlib';
 
 const PBR_SPEC_GLOSS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 const LOADER_PATCH_FLAG = '__atharPbrSpecGlossExtensionRegistered';
@@ -17,21 +18,29 @@ type GLTFMaterialDefinition = {
     extensions?: Record<string, unknown>;
 };
 
-type GLTFParserLike = {
+type GLTFParserLike = Pick<
+    GLTFParser,
+    'assignTexture' | 'json'
+>;
+
+type GLTFLoaderLike = Pick<GLTFLoader, 'register'> & {
+    [LOADER_PATCH_FLAG]?: boolean;
+};
+
+type GLTFNamedLoaderPlugin = GLTFLoaderPlugin & {
+    name: string;
+};
+
+type GLTFTextureAssigningParser = {
     assignTexture: (
         materialParams: Record<string, unknown>,
         mapName: string,
         mapDef: GLTFTextureInfo,
         colorSpace?: string,
-    ) => Promise<unknown>;
+    ) => Promise<void>;
     json: {
         materials?: GLTFMaterialDefinition[];
     };
-};
-
-type GLTFLoaderLike = {
-    register: (callback: (parser: GLTFParserLike) => { name: string }) => void;
-    [LOADER_PATCH_FLAG]?: boolean;
 };
 
 const getSpecGlossExtension = (parser: GLTFParserLike, materialIndex: number) => {
@@ -45,11 +54,11 @@ const getSpecGlossExtension = (parser: GLTFParserLike, materialIndex: number) =>
     return extension as GLTFSpecGlossExtensionData;
 };
 
-class GLTFPBRSpecGlossinessFallbackExtension {
-    parser: GLTFParserLike;
+class GLTFPBRSpecGlossinessFallbackExtension implements GLTFNamedLoaderPlugin {
+    parser: GLTFTextureAssigningParser;
     name = PBR_SPEC_GLOSS_EXTENSION;
 
-    constructor(parser: GLTFParserLike) {
+    constructor(parser: GLTFTextureAssigningParser) {
         this.parser = parser;
     }
 
