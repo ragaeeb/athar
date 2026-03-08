@@ -1,161 +1,153 @@
 import { useFrame } from '@react-three/fiber';
+import { useEffect, useRef } from 'react';
+import type { AudioCue } from '@/content/audio/cues';
 import { CHARACTER_CONFIGS } from '@/content/characters/characters';
 import { audioManager } from '@/features/audio/audio-manager';
+import { atharDebugLog } from '@/features/debug/debug';
+import { recordFrameDeltaMs, recordPlayerMovementTick } from '@/features/debug/perf-metrics';
+import { getActiveSpikeWatch } from '@/features/debug/spike-watch';
+import { getMovementInputSnapshot } from '@/features/gameplay/controllers/input-state';
+import { rendererBridge } from '@/features/gameplay/presentation/PresentationRuntime';
+import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
+import { createSimulationRunner, type SimulationRunner } from '@/features/gameplay/simulation/core/SimulationRunner';
+import type {
+    SimulationEvent,
+    SimulationLevelState,
+    SimulationPlayerState,
+    SimulationState,
+} from '@/features/gameplay/simulation/core/SimulationTypes';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
-import { generateScatterTokens } from '@/features/map/lib/geo';
-import {
-    OBSTACLE_HIT_COOLDOWN_MS,
-    SCATTER_DURATION_MS,
-    TOKEN_COLLECTION_RADIUS_METERS,
-} from '@/shared/constants/gameplay';
 
-import {
-    findCollectableTokens,
-    findReachedMilestone,
-    findTeacherEncounter,
-    findTriggeredObstacle,
-    meetsWinCondition,
-    resolveNextObjective,
-} from './CollisionSystem';
+const readSimulationPlayerState = (): SimulationPlayerState => {
+    const playerState = usePlayerStore.getState();
+    const playerRuntimeState = getPlayerRuntimeState();
 
-type FrameState = {
-    character: ReturnType<typeof useGameStore.getState>['selectedCharacter'];
-    levelState: ReturnType<typeof useLevelStore.getState>;
-    playerState: ReturnType<typeof usePlayerStore.getState>;
+    return {
+        activeTeacher: playerState.activeTeacher,
+        bearing: playerRuntimeState.bearing,
+        coords: playerRuntimeState.coords,
+        dialogueOpen: playerState.dialogueOpen,
+        hadithTokens: playerState.hadithTokens,
+        hitTokens: playerState.hitTokens,
+        isHit: playerState.isHit,
+        lastHitAt: playerState.lastHitAt,
+        positionMeters: playerRuntimeState.positionMeters,
+        scrambleUntil: playerState.scrambleUntil,
+        speed: playerRuntimeState.speed,
+        tokensLost: playerState.tokensLost,
+    };
 };
 
-const readFrameState = (): FrameState => ({
-    character: useGameStore.getState().selectedCharacter,
-    levelState: useLevelStore.getState(),
-    playerState: usePlayerStore.getState(),
-});
+const readSimulationLevelState = (): SimulationLevelState => {
+    const levelState = useLevelStore.getState();
 
-const collectNearbyTokens = (frameState: FrameState, collectionRadius: number) => {
-    const collectableTokens = findCollectableTokens(
-        frameState.playerState.coords,
-        frameState.levelState.tokens,
-        collectionRadius,
-    );
-
-    for (const token of collectableTokens) {
-        useLevelStore.getState().collectToken(token.id);
-        usePlayerStore.getState().addToken(token.value);
-        audioManager.play('collect-token');
-    }
+    return {
+        completedMilestoneIds: levelState.completedMilestoneIds,
+        completedTeacherIds: levelState.completedTeacherIds,
+        isComplete: levelState.isComplete,
+        lockedHadith: levelState.lockedHadith,
+        nextObjective: levelState.nextObjective,
+        objectives: levelState.objectives,
+        tokens: levelState.tokens,
+    };
 };
 
-const openTeacherDialogueIfNeeded = (frameState: FrameState) => {
-    if (frameState.playerState.dialogueOpen || !frameState.levelState.config) {
-        return;
+const readSimulationState = (): SimulationState | null => {
+    const levelState = useLevelStore.getState();
+    if (!levelState.config) {
+        return null;
     }
 
-    const teacher = findTeacherEncounter(
-        frameState.playerState.coords,
-        frameState.levelState.config,
-        frameState.levelState.completedTeacherIds,
-    );
+    const selectedCharacter = useGameStore.getState().selectedCharacter;
+    const characterConfig = CHARACTER_CONFIGS[selectedCharacter];
 
-    if (!teacher) {
-        return;
-    }
-
-    usePlayerStore.getState().openDialogue(teacher);
-    audioManager.play('teacher-encounter');
+    return {
+        character: {
+            obstacleDamageMultiplier: characterConfig.obstacleDamageMultiplier,
+            speedMultiplier: characterConfig.speedMultiplier,
+            tokenRadiusMultiplier: characterConfig.tokenRadiusMultiplier,
+        },
+        level: levelState.config,
+        levelState: readSimulationLevelState(),
+        nowMs: Date.now(),
+        player: readSimulationPlayerState(),
+    };
 };
 
-const completeReachedMilestoneIfNeeded = (frameState: FrameState) => {
-    if (!frameState.levelState.config) {
-        return;
+const applySimulationEvents = (events: SimulationEvent[]) => {
+    const playedAudioCues = new Set<AudioCue>();
+
+    for (const event of events) {
+        if (event.type === 'audio') {
+            if (playedAudioCues.has(event.cue)) {
+                continue;
+            }
+
+            playedAudioCues.add(event.cue);
+            audioManager.play(event.cue);
+        }
+
+        if (event.type === 'player-moved') {
+            recordPlayerMovementTick();
+        }
     }
-
-    const milestone = findReachedMilestone(
-        frameState.playerState.coords,
-        frameState.levelState.config,
-        frameState.levelState.completedMilestoneIds,
-    );
-
-    if (milestone) {
-        useLevelStore.getState().completeMilestone(milestone.id);
-    }
-};
-
-const applyObstacleEffectsIfNeeded = (frameState: FrameState, now: number) => {
-    if (!frameState.levelState.config) {
-        return;
-    }
-
-    const obstacle = findTriggeredObstacle(frameState.playerState.coords, frameState.levelState.config);
-    const canLoseTokens =
-        obstacle?.type !== 'sandstorm' &&
-        now - frameState.playerState.lastHitAt > OBSTACLE_HIT_COOLDOWN_MS &&
-        frameState.playerState.hadithTokens > 0;
-
-    if (!canLoseTokens) {
-        return;
-    }
-
-    const lostCount = Math.max(1, Math.floor(frameState.playerState.hadithTokens / 2));
-    const scatteredTokens = generateScatterTokens(frameState.playerState.coords, lostCount, now + SCATTER_DURATION_MS);
-
-    usePlayerStore.getState().loseTokens(lostCount, scatteredTokens, now);
-    useLevelStore.getState().addScatteredTokens(scatteredTokens);
-    audioManager.play('obstacle-hit');
-    audioManager.play('lose-token');
 };
 
 export const GameLoop = () => {
-    useFrame(() => {
-        const now = Date.now();
-        let frameState = readFrameState();
+    const levelId = useLevelStore((state) => state.config?.id);
+    const runnerRef = useRef<SimulationRunner>(createSimulationRunner());
 
-        if (!frameState.levelState.config || frameState.levelState.isComplete) {
+    useEffect(() => {
+        runnerRef.current.reset(Date.now());
+    }, [levelId]);
+
+    useFrame((_, rawDelta) => {
+        if (!levelId) {
             return;
         }
 
-        frameState.levelState.pruneExpiredTokens(now);
-        frameState.playerState.clearExpiredHitTokens(now);
-        frameState = readFrameState();
+        const frameDeltaMs = Math.min(rawDelta, 0.1) * 1_000;
+        recordFrameDeltaMs(frameDeltaMs);
+        if (frameDeltaMs > 20) {
+            atharDebugLog('route', 'GAME_LOOP_SPIKE', { frameDeltaMs });
+        }
 
-        const collectionRadius =
-            TOKEN_COLLECTION_RADIUS_METERS * CHARACTER_CONFIGS[frameState.character].tokenRadiusMultiplier;
-        collectNearbyTokens(frameState, collectionRadius);
-        frameState = readFrameState();
+        const activeSpikeWatch = getActiveSpikeWatch();
+        if (activeSpikeWatch && frameDeltaMs > 16.7) {
+            atharDebugLog(
+                'route',
+                'WATCHED_GAME_LOOP_SPIKE',
+                {
+                    frameDeltaMs,
+                    watchLabel: activeSpikeWatch.label,
+                    watchOffsetMs: performance.now() - activeSpikeWatch.startedAtMs,
+                },
+                { throttleKey: `watched-game-loop-spike:${activeSpikeWatch.label}`, throttleMs: 120 },
+            );
+        }
 
-        openTeacherDialogueIfNeeded(frameState);
-        frameState = readFrameState();
-
-        completeReachedMilestoneIfNeeded(frameState);
-        frameState = readFrameState();
-
-        applyObstacleEffectsIfNeeded(frameState, now);
-        frameState = readFrameState();
-        const config = frameState.levelState.config;
-        if (!config) {
+        const state = readSimulationState();
+        if (!state || state.levelState.isComplete) {
             return;
         }
 
-        const nextObjective = resolveNextObjective(
-            config,
-            frameState.levelState.completedTeacherIds,
-            frameState.levelState.completedMilestoneIds,
-            frameState.levelState.tokens,
-        );
-        useLevelStore.getState().setNextObjective(nextObjective);
+        const result = runnerRef.current.advance({
+            frameDeltaMs,
+            input: getMovementInputSnapshot(),
+            state,
+        });
 
-        if (
-            meetsWinCondition(
-                config,
-                frameState.levelState.completedTeacherIds,
-                frameState.levelState.completedMilestoneIds,
-                frameState.levelState.lockedHadith,
-                frameState.playerState.hadithTokens,
-            )
-        ) {
-            useLevelStore.getState().setComplete(true);
+        if (!result.didStep) {
+            return;
         }
-    });
+
+        rendererBridge.consume(result);
+        usePlayerStore.getState().syncFromSimulation(result.state.player);
+        useLevelStore.getState().syncFromSimulation(result.state.levelState);
+        applySimulationEvents(result.events);
+    }, -1);
 
     return null;
 };

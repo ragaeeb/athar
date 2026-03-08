@@ -1,14 +1,13 @@
 import { Billboard, Text } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { Coordinates, coordsToVector3, NearCoordinates } from 'react-three-map/maplibre';
+import { Coordinates, NearCoordinates } from 'react-three-map/maplibre';
 import type { Group } from 'three';
 import type { LevelConfig } from '@/content/levels/types';
 import { PlayerCharacter } from '@/features/characters/components/PlayerCharacter';
 import { TeacherNPC } from '@/features/characters/components/TeacherNPC';
 import { atharDebugLog } from '@/features/debug/debug';
+import { sceneRegistry } from '@/features/gameplay/presentation/SceneRegistry';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
-import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import { Milestone3DBuilding } from '@/features/milestones/components/Milestone3DBuilding';
 import { ObstacleEntity } from '@/features/obstacles/components/ObstacleEntity';
 import { HadithToken } from '@/features/tokens/components/HadithToken';
@@ -18,33 +17,23 @@ type LevelMapProps = {
     level: LevelConfig;
 };
 
-type PlayerMarkerProps = {
-    originLat: number;
-    originLng: number;
-};
-
-const PlayerMarker = ({ originLat, originLng }: PlayerMarkerProps) => {
+const PlayerMarker = () => {
     const groupRef = useRef<Group>(null);
 
     useEffect(() => {
-        atharDebugLog('player-marker', 'mounted');
-        return () => {
-            atharDebugLog('player-marker', 'unmounted');
-        };
-    }, []);
-
-    useFrame(() => {
-        if (!groupRef.current) {
+        const group = groupRef.current;
+        if (!group) {
             return;
         }
 
-        const coords = usePlayerStore.getState().coords;
-        const [x, y, z] = coordsToVector3(
-            { latitude: coords.lat, longitude: coords.lng },
-            { latitude: originLat, longitude: originLng },
-        );
-        groupRef.current.position.set(x, y, z);
-    });
+        sceneRegistry.registerEntity('player', group);
+        atharDebugLog('player-marker', 'mounted');
+
+        return () => {
+            sceneRegistry.unregisterEntity('player', group);
+            atharDebugLog('player-marker', 'unmounted');
+        };
+    }, []);
 
     return (
         <group ref={groupRef}>
@@ -109,7 +98,7 @@ export const LevelMap = ({ level }: LevelMapProps) => {
                 )}
 
             <Coordinates latitude={level.origin.lat} longitude={level.origin.lng}>
-                <PlayerMarker originLat={level.origin.lat} originLng={level.origin.lng} />
+                <PlayerMarker />
             </Coordinates>
         </>
     );

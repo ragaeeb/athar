@@ -16,15 +16,17 @@ import {
     resetPerfMetrics,
     updateMapViewSnapshot,
 } from '@/features/debug/perf-metrics';
+import {
+    getPlayerRuntimeState,
+    setPlayerRuntimeCoords,
+    updatePlayerRuntimeMovement,
+} from '@/features/gameplay/runtime/player-runtime';
+import { meetsWinCondition } from '@/features/gameplay/simulation/systems/CollisionSystem';
+import { resolveMovementStep } from '@/features/gameplay/simulation/systems/movement-utils';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
-import { meetsWinCondition } from '@/features/gameplay/systems/CollisionSystem';
-import {
-    resolveCameraFollow,
-    resolveMovementStep,
-    shouldAutoFollowCamera,
-} from '@/features/gameplay/systems/player-motion';
+import { resolveCameraFollow, shouldAutoFollowCamera } from '@/features/gameplay/systems/player-motion';
 import { BASE_PLAYER_SPEED_METERS_PER_SECOND } from '@/shared/constants/gameplay';
 
 const PERF_CAMERA_FOLLOW_DAMPING = 10;
@@ -94,12 +96,12 @@ const applySimulatedMovementStep = ({
         moveX,
         moveZ,
         origin,
-        positionMeters: playerState.positionMeters,
+        positionMeters: getPlayerRuntimeState().positionMeters,
         scrambleMultiplier: playerState.scrambleUntil > scenarioEpochNow ? -1 : 1,
         speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * characterSpeedMultiplier,
     });
 
-    usePlayerStore.getState().updateMovement({
+    updatePlayerRuntimeMovement({
         bearing: movement.bearing,
         coords: movement.nextCoords,
         positionMeters: movement.nextPositionMeters,
@@ -138,7 +140,7 @@ const applySimulatedCameraFollow = ({
         deadzoneMeters: PERF_CAMERA_FOLLOW_DEADZONE_METERS,
         delta,
         maxSpeedMetersPerSecond: PERF_CAMERA_FOLLOW_MAX_SPEED_MPS,
-        targetCoords: usePlayerStore.getState().coords,
+        targetCoords: getPlayerRuntimeState().coords,
     });
 
     if (!follow.moved) {
@@ -269,7 +271,7 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                     return;
                 }
 
-                usePlayerStore.getState().setCoords(milestone.coords, level.origin);
+                setPlayerRuntimeCoords(milestone.coords, level.origin);
                 useLevelStore.getState().completeMilestone(milestone.id);
 
                 if (
@@ -291,7 +293,7 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                     return;
                 }
 
-                usePlayerStore.getState().setCoords(teacher.coords, level.origin);
+                setPlayerRuntimeCoords(teacher.coords, level.origin);
                 usePlayerStore.getState().openDialogue(teacher);
             },
         };
@@ -301,4 +303,31 @@ export const useAtharDevTools = (levelId: string | undefined) => {
             delete windowWithDevTools.__atharDev__;
         };
     }, [levelId]);
+
+    useEffect(() => {
+        if (!(import.meta.env.DEV || import.meta.env.MODE === 'test') || typeof PerformanceObserver === 'undefined') {
+            return;
+        }
+
+        const supportedEntryTypes = PerformanceObserver.supportedEntryTypes ?? [];
+        if (!supportedEntryTypes.includes('longtask')) {
+            return;
+        }
+
+        const observer = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+                atharDebugLog('route', 'LONG_TASK', {
+                    durationMs: entry.duration,
+                    name: entry.name,
+                    startTimeMs: entry.startTime,
+                });
+            }
+        });
+
+        observer.observe({ entryTypes: ['longtask'] });
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
 };

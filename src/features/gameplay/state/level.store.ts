@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { LevelConfig, NextObjective, ObjectiveStatus, TokenState } from '@/content/levels/types';
-import { generateClusterTokens } from '@/features/map/lib/geo';
+import type { SimulationLevelState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { generateClusterTokens } from '@/shared/geo';
 
 const buildObjectives = (
     config: LevelConfig,
@@ -54,6 +55,7 @@ export type LevelState = {
     addScatteredTokens: (tokens: TokenState[]) => void;
     pruneExpiredTokens: (now: number) => void;
     setComplete: (value: boolean) => void;
+    syncFromSimulation: (levelState: SimulationLevelState) => void;
 };
 
 const initialLevelState = {
@@ -65,6 +67,27 @@ const initialLevelState = {
     nextObjective: null as NextObjective,
     objectives: [] as ObjectiveStatus[],
     tokens: [] as TokenState[],
+};
+
+type LevelStoreSimulationSnapshot = Pick<
+    LevelState,
+    | 'completedMilestoneIds'
+    | 'completedTeacherIds'
+    | 'isComplete'
+    | 'lockedHadith'
+    | 'nextObjective'
+    | 'objectives'
+    | 'tokens'
+>;
+
+type LevelSyncChanges = {
+    completedMilestoneIdsChanged: boolean;
+    completedTeacherIdsChanged: boolean;
+    isCompleteChanged: boolean;
+    lockedHadithChanged: boolean;
+    nextObjectiveChanged: boolean;
+    objectivesChanged: boolean;
+    tokensChanged: boolean;
 };
 
 const objectivesMatch = (left: NextObjective, right: NextObjective) => {
@@ -93,6 +116,105 @@ const objectivesMatch = (left: NextObjective, right: NextObjective) => {
     }
 
     return true;
+};
+
+const stringArraysMatch = (left: string[], right: string[]) =>
+    left.length === right.length && left.every((value, index) => value === right[index]);
+
+const objectiveStatusesMatch = (left: ObjectiveStatus[], right: ObjectiveStatus[]) =>
+    left.length === right.length &&
+    left.every(
+        (entry, index) =>
+            entry.completed === right[index]?.completed &&
+            entry.detail === right[index]?.detail &&
+            entry.id === right[index]?.id &&
+            entry.kind === right[index]?.kind &&
+            entry.label === right[index]?.label,
+    );
+
+const tokensMatch = (left: TokenState[], right: TokenState[]) =>
+    left.length === right.length &&
+    left.every((token, index) => {
+        const other = right[index];
+        return (
+            token.id === other?.id &&
+            token.kind === other?.kind &&
+            token.clusterId === other?.clusterId &&
+            token.value === other?.value &&
+            token.collected === other?.collected &&
+            token.expiresAt === other?.expiresAt &&
+            token.bounceSeed === other?.bounceSeed &&
+            token.coords.lat === other?.coords.lat &&
+            token.coords.lng === other?.coords.lng &&
+            token.anchor.lat === other?.anchor.lat &&
+            token.anchor.lng === other?.anchor.lng &&
+            token.localOffsetMeters.x === other?.localOffsetMeters.x &&
+            token.localOffsetMeters.z === other?.localOffsetMeters.z
+        );
+    });
+
+const cloneNextObjective = (objective: NextObjective): NextObjective =>
+    objective
+        ? {
+              ...objective,
+              coords: { ...objective.coords },
+          }
+        : null;
+
+const cloneObjectives = (objectives: ObjectiveStatus[]) => objectives.map((objective) => ({ ...objective }));
+
+const cloneTokens = (tokens: TokenState[]) =>
+    tokens.map((token) => ({
+        ...token,
+        anchor: { ...token.anchor },
+        coords: { ...token.coords },
+        localOffsetMeters: { ...token.localOffsetMeters },
+    }));
+
+const getLevelSyncChanges = (state: LevelState, levelState: SimulationLevelState): LevelSyncChanges => ({
+    completedMilestoneIdsChanged: !stringArraysMatch(state.completedMilestoneIds, levelState.completedMilestoneIds),
+    completedTeacherIdsChanged: !stringArraysMatch(state.completedTeacherIds, levelState.completedTeacherIds),
+    isCompleteChanged: state.isComplete !== levelState.isComplete,
+    lockedHadithChanged: state.lockedHadith !== levelState.lockedHadith,
+    nextObjectiveChanged: !objectivesMatch(state.nextObjective, levelState.nextObjective),
+    objectivesChanged: !objectiveStatusesMatch(state.objectives, levelState.objectives),
+    tokensChanged: !tokensMatch(state.tokens, levelState.tokens),
+});
+
+const hasLevelSyncChanges = (changes: LevelSyncChanges) =>
+    changes.completedMilestoneIdsChanged ||
+    changes.completedTeacherIdsChanged ||
+    changes.isCompleteChanged ||
+    changes.lockedHadithChanged ||
+    changes.nextObjectiveChanged ||
+    changes.objectivesChanged ||
+    changes.tokensChanged;
+
+const buildSyncedLevelState = (
+    state: LevelState,
+    levelState: SimulationLevelState,
+): LevelStoreSimulationSnapshot | null => {
+    const changes = getLevelSyncChanges(state, levelState);
+
+    if (!hasLevelSyncChanges(changes)) {
+        return null;
+    }
+
+    return {
+        completedMilestoneIds: changes.completedMilestoneIdsChanged
+            ? [...levelState.completedMilestoneIds]
+            : state.completedMilestoneIds,
+        completedTeacherIds: changes.completedTeacherIdsChanged
+            ? [...levelState.completedTeacherIds]
+            : state.completedTeacherIds,
+        isComplete: changes.isCompleteChanged ? levelState.isComplete : state.isComplete,
+        lockedHadith: changes.lockedHadithChanged ? levelState.lockedHadith : state.lockedHadith,
+        nextObjective: changes.nextObjectiveChanged
+            ? cloneNextObjective(levelState.nextObjective)
+            : state.nextObjective,
+        objectives: changes.objectivesChanged ? cloneObjectives(levelState.objectives) : state.objectives,
+        tokens: changes.tokensChanged ? cloneTokens(levelState.tokens) : state.tokens,
+    };
 };
 
 export const useLevelStore = create<LevelState>()((set) => ({
@@ -210,6 +332,11 @@ export const useLevelStore = create<LevelState>()((set) => ({
             }
 
             return { nextObjective };
+        }),
+    syncFromSimulation: (levelState) =>
+        set((state) => {
+            const nextState = buildSyncedLevelState(state, levelState);
+            return nextState ?? state;
         }),
 }));
 

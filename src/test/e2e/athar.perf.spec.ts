@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import type { MapViewSnapshot as MapView, PerfSnapshot } from '@/lib/perf-metrics';
+import type { MapViewSnapshot as MapView, PerfSnapshot } from '@/features/debug/perf-metrics';
 
 type AtharPerfWindow = Window &
     typeof globalThis & {

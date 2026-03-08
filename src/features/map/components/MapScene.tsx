@@ -1,27 +1,38 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { AdaptiveDpr, Environment } from '@react-three/drei';
-import { useEffect, useRef, useState } from 'react';
+import type { ErrorEvent, MapContextEvent } from 'maplibre-gl';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import MapLibreMap, { type MapRef } from 'react-map-gl/maplibre';
 import { Canvas } from 'react-three-map/maplibre';
 import { PCFShadowMap } from 'three';
 
 import type { LevelConfig } from '@/content/levels/types';
+import { atharDebugLog } from '@/features/debug/debug';
 import {
     recordManualMapInteraction,
     setPerfMapViewController,
     updateMapViewSnapshot,
 } from '@/features/debug/perf-metrics';
 import { getSunLightPosition } from '@/features/map/lib/geo';
+import {
+    createMapAssetRuntimeIssue,
+    createWebGlRuntimeIssue,
+    type MapRuntimeIssue,
+} from '@/features/map/lib/runtime-issues';
 
 type MapSceneProps = {
     level: LevelConfig;
     children: React.ReactNode;
+    onRuntimeIssueChange?: (issue: MapRuntimeIssue | null) => void;
 };
 
-export const MapScene = ({ level, children }: MapSceneProps) => {
+export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProps) => {
     const sunPosition = getSunLightPosition(level.origin, level.lighting);
     const mapRef = useRef<MapRef | null>(null);
+    const levelIdRef = useRef(level.id);
+    const lastRuntimeIssueSignatureRef = useRef<string | null>(null);
+    const onRuntimeIssueChangeRef = useRef(onRuntimeIssueChange);
     const fallbackMapViewRef = useRef({
         bearing: level.initialView.bearing,
         center: {
@@ -32,6 +43,91 @@ export const MapScene = ({ level, children }: MapSceneProps) => {
         zoom: level.initialView.zoom,
     });
     const [mapLoaded, setMapLoaded] = useState(false);
+
+    const getErrorDetails = useCallback((error: unknown): { message: string; type: string | null } => {
+        const parseMessage = (value: string) => {
+            try {
+                const parsed = JSON.parse(value) as {
+                    message?: unknown;
+                    statusMessage?: unknown;
+                    type?: unknown;
+                };
+
+                return {
+                    message:
+                        typeof parsed.statusMessage === 'string'
+                            ? parsed.statusMessage
+                            : typeof parsed.message === 'string'
+                              ? parsed.message
+                              : value,
+                    type: typeof parsed.type === 'string' ? parsed.type : null,
+                };
+            } catch {
+                return {
+                    message: value,
+                    type: null,
+                };
+            }
+        };
+
+        if (error instanceof Error) {
+            return parseMessage(error.message);
+        }
+
+        if (typeof error === 'string') {
+            return parseMessage(error);
+        }
+
+        if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+            const details = parseMessage(error.message);
+            const errorWithOptionalType = error as { type?: unknown };
+
+            return {
+                message: details.message,
+                type: typeof errorWithOptionalType.type === 'string' ? errorWithOptionalType.type : details.type,
+            };
+        }
+
+        return {
+            message: 'Map assets failed before the chapter finished loading.',
+            type: null,
+        };
+    }, []);
+
+    const updateRuntimeIssue = useCallback((issue: MapRuntimeIssue | null) => {
+        const nextSignature = issue ? `${issue.code}:${issue.message}` : null;
+        if (nextSignature === lastRuntimeIssueSignatureRef.current) {
+            return;
+        }
+
+        lastRuntimeIssueSignatureRef.current = nextSignature;
+        onRuntimeIssueChangeRef.current?.(issue);
+
+        if (issue) {
+            atharDebugLog('map', 'runtime-issue', {
+                code: issue.code,
+                levelId: levelIdRef.current,
+                message: issue.message,
+            });
+            return;
+        }
+
+        atharDebugLog('map', 'runtime-recovered', { levelId: levelIdRef.current });
+    }, []);
+
+    useEffect(() => {
+        levelIdRef.current = level.id;
+    }, [level.id]);
+
+    useEffect(() => {
+        onRuntimeIssueChangeRef.current = onRuntimeIssueChange;
+    }, [onRuntimeIssueChange]);
+
+    useEffect(() => {
+        lastRuntimeIssueSignatureRef.current = null;
+        setMapLoaded(false);
+        onRuntimeIssueChangeRef.current?.(null);
+    }, [level.id]);
 
     useEffect(() => {
         const readFallbackMapView = () => fallbackMapViewRef.current;
@@ -163,7 +259,36 @@ export const MapScene = ({ level, children }: MapSceneProps) => {
             map.off('rotatestart', markManualInteraction);
             map.off('pitchstart', markManualInteraction);
         };
-    }, [mapLoaded, level]);
+    }, [level, mapLoaded]);
+
+    useEffect(() => {
+        if (!mapLoaded || !mapRef.current) {
+            return;
+        }
+
+        const map = mapRef.current.getMap();
+
+        const handleMapError = (event: ErrorEvent) => {
+            const details = getErrorDetails(event.error);
+            updateRuntimeIssue(createMapAssetRuntimeIssue(details.message, false));
+        };
+        const handleContextLost = (_event: MapContextEvent) => {
+            updateRuntimeIssue(createWebGlRuntimeIssue());
+        };
+        const handleContextRestored = (_event: MapContextEvent) => {
+            updateRuntimeIssue(null);
+        };
+
+        map.on('error', handleMapError);
+        map.on('webglcontextlost', handleContextLost);
+        map.on('webglcontextrestored', handleContextRestored);
+
+        return () => {
+            map.off('error', handleMapError);
+            map.off('webglcontextlost', handleContextLost);
+            map.off('webglcontextrestored', handleContextRestored);
+        };
+    }, [getErrorDetails, mapLoaded, updateRuntimeIssue]);
 
     return (
         <MapLibreMap
@@ -171,8 +296,14 @@ export const MapScene = ({ level, children }: MapSceneProps) => {
             reuseMaps
             initialViewState={level.initialView}
             keyboard={false}
+            onError={(event) => {
+                const details = getErrorDetails(event.error);
+                const blocking = !mapLoaded && details.type !== 'webglcontextcreationerror';
+                updateRuntimeIssue(createMapAssetRuntimeIssue(details.message, blocking));
+            }}
             onLoad={() => {
                 setMapLoaded(true);
+                updateRuntimeIssue(null);
             }}
             maxPitch={75}
             dragRotate

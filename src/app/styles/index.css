@@ -10,6 +10,18 @@
     --color-sand-300: #d3b171;
     --color-teal-500: #1f9d95;
     --color-gold-400: #e9c46a;
+    --color-ui-success: #2b9d8f;
+    --color-ui-warning: #e9c46a;
+    --color-ui-danger: #c66b58;
+    --color-ui-info: #8ecae6;
+    --color-ui-focus: #f5ebd8;
+    --color-ui-disabled: #61717c;
+    --color-ui-scrim: rgb(7 17 24 / 0.82);
+    --color-ui-selection: rgb(233 196 106 / 0.22);
+    --color-ui-on-success: #071118;
+    --color-ui-on-warning: #071118;
+    --color-ui-on-danger: #f5ebd8;
+    --color-ui-on-info: #071118;
     --font-display: "Cinzel", serif;
     --font-body: "Inter", sans-serif;
     --font-dialogue: "Scheherazade New", serif;
@@ -17,6 +29,7 @@
 }
 
 :root {
+    color-scheme: dark;
     font-family: var(--font-body);
     color: var(--color-sand-50);
     background:
@@ -25,8 +38,8 @@
 }
 
 body {
+    min-inline-size: 320px;
     margin: 0;
-    min-width: 320px;
     min-height: 100vh;
     background:
         radial-gradient(circle at top, rgb(233 196 106 / 0.12), transparent 24%),
@@ -39,4 +52,30 @@ body {
 
 button {
     cursor: pointer;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-ui-focus);
+    outline-offset: 2px;
+}
+
+::selection {
+    background: var(--color-ui-selection);
+}
+
+[dir="rtl"] {
+    text-align: start;
 }

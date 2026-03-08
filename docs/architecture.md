@@ -2,23 +2,28 @@
 
 ## Purpose
 
-This document tracks the current architecture of Athar as it exists today, not the ideal end state. It should answer:
+This document has two jobs:
+
+- describe the current runtime architecture of Athar as it exists today
+- record the approved near-term target architecture from the revised delivery plan
+
+It should answer:
 
 - what the app is made of
-- what is authoritative state versus derived state
-- how rendering, movement, camera, and gameplay flow work
-- where the main extension points and architectural risks are
+- what state is authoritative versus presentational
+- how rendering, movement, camera, and gameplay currently work
+- what architectural direction is now approved for the next refactor
 
 ## Product Shape
 
-Athar is a web-based 3D map game with:
+Athar is a web-based 3D historical map game with:
 
 - a geographic map backdrop
 - Three.js-rendered gameplay entities
-- route-based level loading
-- one shared vertical-slice gameplay loop reused across levels
+- route-based chapter loading
+- one shared vertical-slice gameplay loop reused across chapters
 
-The current release target is a desktop-first playable slice. The long-term roadmap includes more levels, richer city scenes, mobile controls, better content pipelines, and potentially additional play modes such as combat or military encounters.
+The current shipped shape is still a desktop-first slice. The approved roadmap expands this into a five-chapter game with stronger scholar identity, richer worldbuilding, mobile controls, better content governance, more robust performance controls, and production-grade accessibility/audio/release discipline.
 
 ## Tech Stack
 
@@ -39,92 +44,129 @@ The current release target is a desktop-first playable slice. The long-term road
 - Biome
 - Vitest + Playwright
 
-## Runtime Layers
+## Canonical Repo Structure
 
-### App Layer
+The canonical top-level source layout is:
 
-- `src/main.tsx`
-  Bootstraps the app, initializes MapLibre worker count, and mounts the router.
-- `src/router.ts`
+- `src/app`
+- `src/content`
+- `src/features`
+- `src/shared`
+- `src/test`
+
+New work should target the canonical structure above and should not reintroduce ownership into legacy duplicate roots.
+
+## Current Runtime Architecture
+
+## App Layer
+
+- `src/app/main.tsx`
+  Bootstraps the app, configures MapLibre worker count, initializes audio bootstrap, and mounts the router.
+- `src/app/router.ts`
   Defines the route tree.
-- `src/App.tsx`
-  Shared shell/root layout.
+- `src/app/styles/index.css`
+  Tailwind v4 entrypoint and theme styles.
 
-### Route Layer
+## Route Layer
 
-- `src/routes/index.tsx`
-  Landing page, scholar selection, progress summary, level listing.
-- `src/routes/game/$levelId.tsx`
-  Main gameplay route. Loads a level, initializes state, mounts rendering and controllers.
-- `src/routes/game/complete.tsx`
+- `src/app/routes/index.tsx`
+  Landing page, scholar selection, progress summary, and level listing.
+- `src/app/routes/game/level-route.tsx`
+  Main gameplay route. Resolves the level, initializes stores, mounts the map and controllers, and intentionally avoids hot gameplay store subscriptions above the map tree.
+- `src/app/routes/game/complete.tsx`
   Completion summary flow.
 
-### Scene Layer
+## Map And Scene Layer
 
-- `src/components/MapScene.tsx`
-  Owns the MapLibre map, `react-three-map` canvas, lighting, and map interaction tuning.
-- `src/components/LevelMap.tsx`
-  Places level entities and the player marker into the scene.
+- `src/features/map/components/MapScene.tsx`
+  Owns the MapLibre instance, `react-three-map` canvas, map interaction settings, and perf-bridge map view hooks.
+- `src/features/map/components/LevelMap.tsx`
+  Places level entities and the player marker into the geospatial scene.
 
-### Gameplay Layer
+## Gameplay Layer
 
-- `src/game/engine/PlayerController.tsx`
-  Keyboard input and player movement updates.
-- `src/game/engine/CameraController.tsx`
-  Camera follow and manual camera interaction suppression.
-- `src/game/engine/GameLoop.tsx`
-  Per-frame collision, encounter, milestone, token, and win-condition evaluation.
-- `src/game/engine/CollisionSystem.ts`
-  Pure gameplay queries for proximity and objective resolution.
-- `src/game/engine/player-motion.ts`
-  Shared movement and camera math utilities.
+- `src/features/gameplay/controllers/PlayerController.tsx`
+  Keyboard input capture for the fixed-timestep gameplay runtime.
+- `src/features/gameplay/simulation/core/SimulationRunner.ts`
+  Fixed-timestep accumulator that advances pure gameplay systems.
+- `src/features/gameplay/systems/GameLoop.tsx`
+  React-to-simulation bridge that advances the pure gameplay runtime and commits store-safe results.
+- `src/features/gameplay/presentation/PresentationRuntime.tsx`
+  Scene-registry-driven player placement and camera follow.
+- `src/features/gameplay/presentation/SceneRegistry.ts`
+  StrictMode-safe registration for hot visual refs and presentation-only state.
+- `src/features/gameplay/systems/CollisionSystem.ts`
+  Pure gameplay queries for proximity, encounters, and objective resolution.
+- `src/features/gameplay/systems/player-motion.ts`
+  Pure movement and camera-follow math.
 
-### State Layer
+## State Layer
 
-- `src/game/store/game.store.ts`
+- `src/features/gameplay/state/game.store.ts`
   Persistent progression and scholar selection.
-- `src/game/store/player.store.ts`
+- `src/features/gameplay/state/player.store.ts`
   Live player state, movement, dialogue, and losable tokens.
-- `src/game/store/level.store.ts`
-  Active level config, objectives, tokens, completion state.
+- `src/features/gameplay/state/level.store.ts`
+  Active level config, objectives, tokens, and completion state.
+
+## Content Layer
+
+- `src/content/characters/characters.ts`
+  Scholar identities and gameplay-facing character config.
+- `src/content/scholars/scholar-profiles.ts`
+  Scholar/teacher profile content.
+- `src/content/levels/**`
+  Chapter content and level registry data.
+- `src/content/audio/cues.ts`
+  Audio cue definitions and content-facing mappings.
+- `src/shared/constants/**`
+  Cross-cutting gameplay constants, asset paths, and tuning values.
+
+## HUD Layer
+
+- `src/features/hud/components/**`
+  Active HUD, dialogue, mission panel, counters, and other player-facing overlays. Hot HUD subscriptions should live here rather than in the route shell.
+
+## Debug And Perf Layer
+
+- `src/features/debug/debug.ts`
+  Opt-in debug logging.
+- `src/features/debug/perf-metrics.ts`
+  Perf counters and metrics collection.
+- `src/features/debug/dev-tools.ts`
+  Browser-side test/dev bridge used by Playwright and perf tooling.
+- `src/features/debug/spike-watch.ts`
+  Short-lived targeted spike watch windows used to correlate transient hitches with specific UX actions.
 
 ## Current State Philosophy
 
-Athar currently uses Zustand heavily because it is simple and productive, but the long-term direction is more selective:
+Athar currently uses Zustand heavily because it is simple and productive, but the architecture is already moving toward a more selective model:
 
-- reactive Zustand state should hold committed gameplay and product state
-- transient high-frequency presentation data should not automatically become reactive app state
+- reactive store state should hold committed gameplay and product state
+- transient high-frequency presentation data should not automatically become broad reactive app state
 - persistence, completion summaries, and any future history/undo-like systems should only see durable gameplay facts
+- hot subscriptions should be pushed down close to the UI that consumes them so route-level rerenders do not re-diff the map / Three tree during gameplay
 
 This distinction matters because not every moving value in a Three scene is meaningful application state.
 
-The same principle applies to logic placement:
+The same rule applies to logic placement:
 
 - React components should describe structure, lifecycle, and stable bindings
 - systems should own batched dirty-flagged or cross-entity runtime work
 
 If a behavior touches many entities, depends on dirty flags, or needs to run repeatedly during motion, it is usually a poor fit for per-entity React component logic.
 
-### Content Layer
-
-- `src/game/levels/*.ts`
-  Level configs and registry.
-- `src/lib/hadith-data.ts`
-  Teacher profiles and placeholder text.
-- `src/lib/constants.ts`
-  Character config, asset paths, movement numbers, style constants.
-
-## Rendering Architecture
+## Current Rendering Model
 
 ### Basemap
 
-Athar uses raster MapLibre styles rather than vector styles. This is a deliberate performance choice.
+Athar currently uses raster MapLibre styles instead of vector styles.
 
 Why:
 
 - the map is a backdrop, not the primary interactive content
-- the game draws its own labels and 3D entities
-- raster tiles remove the vector tile parsing/tessellation cost that caused the earlier movement lag
+- the game renders its own labels and gameplay entities
+- raster tiles remove the vector tile parsing and tessellation overhead that previously caused major movement lag
 
 ### Three Layer
 
@@ -137,20 +179,15 @@ Why:
 - obstacles
 - map labels
 
-### Player Placement
+### Player placement
 
-The player is not placed through a declarative `NearCoordinates` wrapper anymore. Instead:
+The player marker registers once into the scene registry and presentation runtime updates the live Three group imperatively. That keeps hot transforms off broad store subscriptions while preserving authoritative gameplay facts in the simulation/store layer.
 
-- `LevelMap` mounts a `PlayerMarker` inside a `Coordinates` portal at the level origin
-- `PlayerMarker` updates its `group.position` imperatively each frame using `coordsToVector3(playerCoords, levelOrigin)`
+## Current Movement And Camera Model
 
-This was introduced to remove movement jitter caused by declarative per-frame reconciliation.
+### Authoritative movement
 
-## Movement And Camera
-
-### Authoritative Movement Model
-
-Player movement operates in local meter-space relative to the level origin.
+Player movement currently operates in local meter-space relative to the level origin.
 
 Player state keeps:
 
@@ -162,215 +199,176 @@ Player state keeps:
 The current practical model is:
 
 - movement updates `positionMeters`
-- geographic `coords` are derived via `offsetCoords(origin, positionMeters)`
-- camera follow uses `coords`
-- collision and objectives use `coords`
+- geographic `coords` are derived from the level origin and the meter offset
+- collision/objectives use `coords`
+- camera follow also uses `coords`
 
 ### Camera
 
-Camera follow is owned by `CameraController`, not `PlayerController`.
+Camera follow is owned by `PresentationRuntime`, not by the input controller or the simulation layer.
 
-Current behavior:
+Current behavior includes:
 
 - deadzone-based follow
 - max follow speed
 - manual zoom/drag/rotate/pitch cooldown
 - `map.jumpTo()` follow updates
-- delta cap to prevent runaway leaps during bad frames
+- delta caps to prevent runaway leaps during bad frames
 
-### Current Tradeoff
-
-This architecture is stable enough for the current slice, but it still depends on:
-
-- `react-three-map`
-- `coordsToVector3`
-- large-scale coordinate conversion from a single level origin
-
-That is workable today, but should be monitored as levels and play modes become more complex.
-
-## Planned Near-Term Architecture Shift
-
-The next major refactor is expected to formalize a simulation/presentation split.
-
-### Target split
-
-- simulation owns authoritative gameplay facts and deterministic rule evaluation
-- presentation owns per-frame interpolation, mesh transforms, animation mixers, and camera smoothing
-- React owns lifecycle, structure, and UI state
-- Zustand owns committed gameplay/product state, not every frame-by-frame value
-
-### Scene registry and non-reactive working state
-
-Athar should adopt a scene registry or equivalent presentation service that:
-
-- registers hot visual objects by stable ID
-- stores mesh refs, vectors, transient offsets, and dirty entity queues
-- allows imperative updates during movement, interpolation, dragging, or physics-like effects
-- avoids turning those values into broad reactive state changes
-
-This registry is also the right handoff point for system-owned runtime logic.
-
-Examples:
-
-- a movement/presentation system updates the player mesh and camera without forcing React rerenders
-- a geometry rebuild system processes only dirty buildings, labels, or future route props
-- an obstacle system advances relevant entities in batches instead of every entity component owning its own update path
-
-Some Zustand-managed state may still be used as an organizational home for this data, but the intended rule is:
-
-- not every value in Zustand should be reactive
-- hot transient values may be mutated and consumed internally without triggering React rerenders
-- history/persistence layers should ignore presentation-only state
-
-Examples of data that should remain presentation-only where possible:
-
-- camera interpolation targets
-- mesh-local offsets
-- animation blending state
-- temporary platform/wall offsets
-- dirty-node collections for systems processing
-- per-frame vectors or derived transform caches
-
-## Planned System Model
-
-Athar is expected to move toward a small set of explicit runtime systems.
-
-### What a system means here
-
-A system is not necessarily a full ECS framework. In Athar, a system is any dedicated runtime unit that:
-
-- runs once per frame or on explicit dirty checks
-- processes many entities or shared runtime concerns in a batch
-- consumes scene-registry refs, transient working state, or authoritative simulation state
-- updates presentation objects directly when React rerenders would be the wrong mechanism
-
-### Good candidates for systems
-
-- player movement presentation
-- camera follow
-- token animation / expiry / recovery presentation
-- obstacle behavior updates
-- future label visibility or LOD
-- future city/building geometry rebuilds
-- future combat or military AI updates
-
-### Poor candidates for per-entity React logic
-
-- expensive geometry recalculation triggered by many entity changes
-- dirty-flag scanning across collections
-- transient platform/wall/object offsets
-- repeated mesh transform updates that do not need React awareness
-
-## Gameplay Flow
-
-The main per-frame loop currently does:
-
-1. prune expired scattered tokens
-2. clear expired player hit tokens
-3. collect nearby hadith tokens
-4. trigger scholar encounters
-5. complete reached milestones
-6. apply obstacle effects
-7. recompute the next objective
-8. check the win condition
-
-This is simple and easy to reason about, which is useful at the current stage, but may eventually need systemization if:
-
-- entity counts rise sharply
-- AI behaviors get richer
-- combat or military systems are added
-- multiple concurrent objectives become common
-
-The architectural direction is to systemize these areas before the app accumulates large amounts of per-entity React runtime logic.
-
-## State Boundaries
-
-### Persistent State
-
-Stored in `game.store.ts`:
-
-- selected scholar
-- unlocked levels
-- total verified hadith
-- last completion summary
-
-### Transient Player State
-
-Stored in `player.store.ts`:
-
-- position
-- movement
-- current tokens
-- dialogue state
-- scramble state
-- recent hit state
-
-This is currently more reactive than the desired end state. Over time, player-facing committed location and gameplay state should remain here, while purely presentational motion/interpolation data should move behind the presentation layer.
-
-### Transient Level State
-
-Stored in `level.store.ts`:
-
-- loaded level config
-- token state
-- completed scholars/milestones
-- current objectives
-- locked hadith
-- completion flag
-
-## Extension Points
-
-### Adding A New Scholar
-
-Add or modify an entry in `src/lib/constants.ts`:
-
-- `id`
-- display name
-- title
-- colors
-- modifiers
-- optional model path
-
-### Adding A New Level
-
-Add a new `LevelConfig` file and register it in `src/game/levels/index.ts`.
-
-### Adding A New Objective Type
-
-Touch points are usually:
-
-- `level.types.ts`
-- `CollisionSystem.ts`
-- `level.store.ts`
-- `HUD.tsx`
-
-### Adding A New Play Mode
-
-For larger features like combat or military encounters, the likely new seams are:
-
-- a dedicated feature folder under `src/game`
-- system-specific stores or slices
-- system-specific render entities
-- system-specific collision/AI modules
-
-This is one of the reasons the repo proposal recommends more feature-oriented partitioning as the codebase grows.
+This is the current contract for the vertical slice and is already aligned with the approved simulation/presentation split.
 
 ## Current Weak Spots
 
-- `react-three-map` precision and ergonomics at country-scale distances should still be watched.
-- The current level span is large and movement speed is still compressed.
-- `GameLoop.tsx` is still a central, growing file and may become too crowded as more systems are added.
-- some hot movement/presentation values still risk being treated like general reactive store state
-- some future geometry/behavior work could easily land in React entity components when it should instead become system-owned dirty processing
-- Level content and historical text are still placeholder-heavy outside Level 1.
-- The current repo layout is serviceable but not yet ideal for long-term AI-assisted scaling.
+- `react-three-map` precision and ergonomics at country-scale distances still need careful handling
+- runtime recovery for map/rendering faults is intentionally minimal and should expand with denser content
+- `GameLoop` is now mostly a bridge, but broader entity presentation still has room to move further into the registry over time
+- content and historical text remain placeholder-heavy outside Level 1
+- audio cues are configured, but checked-in audio assets are not present in `public/audio/**`, so runtime audio currently disables itself cleanly on startup in repo state
+- accessibility, localization, and content-governance systems are only partially reflected in the runtime today
+
+## Approved Near-Term Target Architecture
+
+The revised plan approves the following direction. This is now the intended architecture, not a speculative idea.
+
+## Boundary Rules
+
+These are the governing rules for the next refactor:
+
+1. Simulation owns authoritative gameplay facts and deterministic rule evaluation.
+2. Presentation owns per-frame interpolation, mesh transforms, animation mixers, camera smoothing, and dirty queues.
+3. React owns lifecycle, composition, and UI state.
+4. Zustand owns committed gameplay/product state only.
+5. Only the progression store persists.
+6. Hot transient values may be non-reactive and mutable if React does not need to know about them.
+7. Cross-entity or dirty-flagged runtime work belongs in systems, not scattered entity components.
+8. Level content must be loaded and validated before the gameplay route mounts.
+
+## Simulation Layer
+
+The approved target is a pure simulation boundary under the canonical gameplay feature area.
+
+Target characteristics:
+
+- fixed-timestep simulation loop independent of R3F render cadence
+- no React imports inside simulation code
+- no Three imports inside simulation code
+- deterministic rule evaluation suitable for pure tests
+- explicit subsystem boundaries for movement, collision, objectives, encounters, and win conditions
+
+This boundary should be machine-enforced via lint/import rules, not left as convention.
+
+## Presentation Layer
+
+The approved target is a presentation layer that owns hot visual behavior without using React rerenders as the transport mechanism.
+
+It should include:
+
+- a scene registry keyed by stable entity IDs
+- mesh refs, vectors, dirty queues, transient offsets, and interpolation state
+- imperative updates for player movement, camera smoothing, and repeated visual transforms
+- strict separation from persistence/history-worthy state
+
+The scene registry must be safe under React Strict Mode development behavior:
+
+- duplicate mount/register cycles must not create duplicate entity ownership
+- cleanup must be idempotent
+- last-write-wins registration is acceptable if cleanup semantics remain correct
+
+## Systems Model
+
+Athar is not committing to a full ECS rewrite today. The approved model is explicit runtime systems first.
+
+A system in Athar is any unit that:
+
+- runs once per frame or on explicit dirty checks
+- processes many entities or a shared runtime concern in batch
+- consumes simulation state, scene-registry refs, or transient working state
+- updates presentation objects directly when React rerenders would be the wrong mechanism
+
+Good candidates:
+
+- movement presentation
+- camera follow
+- token presentation and expiry/recovery
+- obstacle behavior updates
+- label visibility or LOD
+- future city/building geometry rebuilds
+- future combat or military AI
+
+ECS or Miniplex should only be reconsidered if:
+
+- active entity counts regularly exceed roughly 200 in real chapters
+- AI/combat behavior clearly outgrows the explicit system model
+- profiling shows the system model itself, not content/renderer cost, is the limiting factor
+
+## Content And Routing Contract
+
+Approved target:
+
+- chapter content is authored under `src/content/**`
+- content is validated through Zod schemas
+- React Router loaders validate and prepare content before route mount
+- malformed chapter content fails before gameplay initialization
+
+This is the contract that makes junior content work and AI-assisted content entry safe at scale.
+
+## Persistence Contract
+
+Approved target:
+
+- only progression data persists
+- persistence is versioned from the early refactor onward
+- migrations are explicit and tested
+- transient player/level state does not persist across sessions by default
+
+## UI, Accessibility, And Motion Contract
+
+Approved target:
+
+- semantic tokens and primitive UI skeleton start in the first architecture phase
+- typography and body/dialogue font decisions are locked early
+- RTL/logical CSS baseline starts before sourced Arabic-capable content scales
+- traversal HUD surfaces avoid JS-heavy animation
+- Framer Motion is reserved for low-frequency transitions, drawers, dialogs, and obscured or paused states unless profiling proves a hot path is safe
+
+## Performance Contract
+
+Approved target:
+
+- do not drive per-frame transforms through broad reactive subscriptions
+- do not keep hot gameplay subscriptions in route shells when only HUD/overlay leaves need them
+- do not allow unbudgeted camera update/event churn
+- use instancing and culling for repeated high-count entities
+- pin bridge dependencies such as `react-three-map` exactly and update them only with senior review and smoke testing
+- add explicit route-based asset eviction and Three/WebGL disposal as chapter density grows
+
+MapLibre worker count and prewarming remain tuning concerns, not unconditional architectural laws. They should be benchmarked against the supported device/browser matrix rather than treated as fixed folklore.
+
+## Chapter And Testing Contract
+
+Approved target:
+
+- deterministic simulation tests exist without DOM, MapLibre, or Three
+- at least one desktop Playwright smoke is merge-blocking
+- perf and mobile smoke start advisory and are promoted to blocking by the end of the density/perf phase
+- replay-safe hadith accounting is defined before multiple real chapters ship
+
+## Transition Plan
+
+The next architecture milestone sequence is:
+
+1. consolidate the repo around the canonical structure
+2. extract the fixed-timestep simulation boundary
+3. introduce the presentation layer and scene registry
+4. rework stores around committed vs presentation state
+5. move chapter loading to validated route loaders
+6. add semantic tokens, primitive skeleton, typography, and RTL baseline
+7. migrate Level 1 to the new architecture
+
+That is the point where this document’s current-state and target-state sections should start to converge.
 
 ## Operational Docs
 
 - `README.md`
 - `AGENTS.md`
-- `docs/future-milestones.md`
-- `docs/research_prompt.md`
-- `docs/repo-proposal.md`
-- `docs/performance-lag.md`
-- `docs/claude-opus-4.6-to-gpt-codex-5.4-handoff.md`
+- `docs/branding.md`

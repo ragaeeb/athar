@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { level1 } from '@/content/levels/level-1/config';
+import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
+import { resolveNextObjective } from '@/features/gameplay/simulation/systems/CollisionSystem';
 import { resetGameStore, useGameStore } from '@/features/gameplay/state/game.store';
 import { resetLevelStore, useLevelStore } from '@/features/gameplay/state/level.store';
 import { resetPlayerStore, usePlayerStore } from '@/features/gameplay/state/player.store';
-import { resolveNextObjective } from '@/features/gameplay/systems/CollisionSystem';
-import { generateScatterTokens } from '@/features/map/lib/geo';
+import { generateScatterTokens } from '@/shared/geo';
 
 describe('gameplay stores', () => {
     beforeEach(() => {
@@ -33,7 +34,7 @@ describe('gameplay stores', () => {
         usePlayerStore.getState().addToken(9);
 
         const expiresAt = Date.now() + 8_000;
-        const scatter = generateScatterTokens(usePlayerStore.getState().coords, 4, expiresAt);
+        const scatter = generateScatterTokens(getPlayerRuntimeState().coords, 4, expiresAt);
         usePlayerStore.getState().loseTokens(4, scatter, Date.now());
 
         expect(usePlayerStore.getState().hadithTokens).toBe(5);

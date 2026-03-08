@@ -41,52 +41,58 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 
 ### Routing
 
-- [src/router.ts](src/router.ts)
-- [src/routes/index.tsx](src/routes/index.tsx)
-- [src/routes/game/$levelId.tsx](src/routes/game/$levelId.tsx)
-- [src/routes/game/complete.tsx](src/routes/game/complete.tsx)
+- [src/app/router.ts](src/app/router.ts)
+- [src/app/routes/index.tsx](src/app/routes/index.tsx)
+- [src/app/routes/game/level-route.tsx](src/app/routes/game/level-route.tsx)
+- [src/app/routes/game/complete.tsx](src/app/routes/game/complete.tsx)
 
 ### Map / Scene
 
-- [src/components/MapScene.tsx](src/components/MapScene.tsx)
-- [src/components/LevelMap.tsx](src/components/LevelMap.tsx)
+- [src/features/map/components/MapScene.tsx](src/features/map/components/MapScene.tsx)
+- [src/features/map/components/LevelMap.tsx](src/features/map/components/LevelMap.tsx)
 
 ### Gameplay
 
-- [src/game/engine/GameLoop.tsx](src/game/engine/GameLoop.tsx)
-- [src/game/engine/PlayerController.tsx](src/game/engine/PlayerController.tsx)
-- [src/game/engine/CameraController.tsx](src/game/engine/CameraController.tsx)
-- [src/game/engine/CollisionSystem.ts](src/game/engine/CollisionSystem.ts)
-- [src/game/engine/player-motion.ts](src/game/engine/player-motion.ts)
+- [src/features/gameplay/systems/GameLoop.tsx](src/features/gameplay/systems/GameLoop.tsx)
+- [src/features/gameplay/controllers/PlayerController.tsx](src/features/gameplay/controllers/PlayerController.tsx)
+- [src/features/gameplay/presentation/PresentationRuntime.tsx](src/features/gameplay/presentation/PresentationRuntime.tsx)
+- [src/features/gameplay/presentation/SceneRegistry.ts](src/features/gameplay/presentation/SceneRegistry.ts)
+- [src/features/gameplay/simulation/core/SimulationRunner.ts](src/features/gameplay/simulation/core/SimulationRunner.ts)
+- [src/features/gameplay/systems/CollisionSystem.ts](src/features/gameplay/systems/CollisionSystem.ts)
+- [src/features/gameplay/systems/player-motion.ts](src/features/gameplay/systems/player-motion.ts)
 
 ### State
 
-- [src/game/store/game.store.ts](src/game/store/game.store.ts)
-- [src/game/store/player.store.ts](src/game/store/player.store.ts)
-- [src/game/store/level.store.ts](src/game/store/level.store.ts)
+- [src/features/gameplay/state/game.store.ts](src/features/gameplay/state/game.store.ts)
+- [src/features/gameplay/state/player.store.ts](src/features/gameplay/state/player.store.ts)
+- [src/features/gameplay/state/level.store.ts](src/features/gameplay/state/level.store.ts)
 
 ### Content / Config
 
-- [src/game/levels/level.types.ts](src/game/levels/level.types.ts)
-- [src/game/levels/index.ts](src/game/levels/index.ts)
-- [src/game/levels/level1.ts](src/game/levels/level1.ts)
-- [src/lib/constants.ts](src/lib/constants.ts)
-- [src/lib/hadith-data.ts](src/lib/hadith-data.ts)
-- [src/lib/geo.ts](src/lib/geo.ts)
+- [src/content/levels/types.ts](src/content/levels/types.ts)
+- [src/content/levels/registry.ts](src/content/levels/registry.ts)
+- [src/content/levels/level-1/config.ts](src/content/levels/level-1/config.ts)
+- [src/shared/constants/gameplay.ts](src/shared/constants/gameplay.ts)
+- [src/content/scholars/scholar-profiles.ts](src/content/scholars/scholar-profiles.ts)
+- [src/shared/geo.ts](src/shared/geo.ts)
 
 ### HUD / UI
 
-- [src/game/hud/HUD.tsx](src/game/hud/HUD.tsx)
-- [src/game/hud/DialogueBox.tsx](src/game/hud/DialogueBox.tsx)
-- [src/components/CharacterSelect.tsx](src/components/CharacterSelect.tsx)
+- [src/features/hud/components/HUD.tsx](src/features/hud/components/HUD.tsx)
+- [src/features/hud/components/DialogueBox.tsx](src/features/hud/components/DialogueBox.tsx)
+- [src/features/characters/components/CharacterSelect.tsx](src/features/characters/components/CharacterSelect.tsx)
 
 ### Tests
 
-- [src/game/engine/player-motion.test.ts](src/game/engine/player-motion.test.ts)
-- [src/game/store/gameplay.test.ts](src/game/store/gameplay.test.ts)
-- [src/game/store/player.store.test.ts](src/game/store/player.store.test.ts)
-- [src/components/CharacterSelect.test.tsx](src/components/CharacterSelect.test.tsx)
-- [src/routes/game/complete.test.tsx](src/routes/game/complete.test.tsx)
+- [src/features/gameplay/presentation/SceneRegistry.test.ts](src/features/gameplay/presentation/SceneRegistry.test.ts)
+- [src/features/gameplay/simulation/core/SimulationRunner.test.ts](src/features/gameplay/simulation/core/SimulationRunner.test.ts)
+- [src/features/gameplay/systems/player-motion.test.ts](src/features/gameplay/systems/player-motion.test.ts)
+- [src/features/gameplay/state/gameplay.test.ts](src/features/gameplay/state/gameplay.test.ts)
+- [src/features/gameplay/state/player.store.test.ts](src/features/gameplay/state/player.store.test.ts)
+- [src/features/gameplay/state/game.store.test.ts](src/features/gameplay/state/game.store.test.ts)
+- [src/features/characters/components/CharacterSelect.test.tsx](src/features/characters/components/CharacterSelect.test.tsx)
+- [src/app/routes/game/level.loader.test.ts](src/app/routes/game/level.loader.test.ts)
+- [src/app/routes/game/complete.test.tsx](src/app/routes/game/complete.test.tsx)
 - [src/test/e2e/athar.spec.ts](src/test/e2e/athar.spec.ts)
 - [src/test/e2e/athar.perf.spec.ts](src/test/e2e/athar.perf.spec.ts)
 
@@ -96,17 +102,20 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 - Levels 2–5 are scaffold data, not finished chapters.
 - Teacher/hadith content outside the first slice is still placeholder-heavy.
 - Mobile controls, richer audio, and advanced city/world rendering are not done yet.
+- `public/audio/**` currently contains placeholders only; the app now disables audio at startup when the configured files are missing.
 
 ## Architecture Rules
 
 - Keep authoritative gameplay state separate from per-frame presentation behavior.
+- Keep simulation code pure: no React, DOM, Three, or MapLibre imports inside `src/features/gameplay/simulation/**`.
 - Do not route hot visual transforms through React rerenders unless there is a strong reason.
+- Do not keep hot gameplay Zustand subscriptions in route-level components above `MapScene` / `GameLoop` / `LevelMap`; subscribe in leaf HUD/overlay components instead.
 - Prefer systems / batched runtime logic over per-entity React logic for dirty-flagged or cross-entity behavior.
 - Treat content/config validation as part of the runtime contract, not optional polish.
 
 ## Debugging
 
-Debug logging is opt-in through [src/lib/debug.ts](src/lib/debug.ts).
+Debug logging is opt-in through [src/features/debug/debug.ts](src/features/debug/debug.ts).
 
 - URL: `?atharDebug=1`
 - Console:
@@ -122,10 +131,11 @@ High-signal channels:
 - `player`
 - `hud`
 - `route`
+- spike/problem events are intentionally logged in all caps, for example `GAME_LOOP_SPIKE`, `PRESENTATION_FRAME_SPIKE`, `LONG_TASK`
 
 ## Perf / Test Bridge
 
-Test-only perf helpers live in [src/lib/dev-tools.ts](src/lib/dev-tools.ts) and the perf metrics live in [src/lib/perf-metrics.ts](src/lib/perf-metrics.ts).
+Test-only perf helpers live in [src/features/debug/dev-tools.ts](src/features/debug/dev-tools.ts) and the perf metrics live in [src/features/debug/perf-metrics.ts](src/features/debug/perf-metrics.ts).
 
 The browser test bridge is exposed as:
 

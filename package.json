@@ -17,9 +17,10 @@
         "react-dom": "^19.2.4",
         "react-map-gl": "^8.1.0",
         "react-router-dom": "^7.13.1",
-        "react-three-map": "^1.0.0",
+        "react-three-map": "1.0.0",
         "suncalc": "^1.9.0",
         "three": "^0.183.2",
+        "zod": "^4.3.6",
         "zustand": "^5.0.11"
     },
     "description": "3D educational map game",
@@ -71,7 +72,7 @@
         "build": "vite build",
         "dev": "vite",
         "format": "biome check --write src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
-        "lint": "biome check src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
+        "lint": "biome check src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html && node scripts/check-simulation-boundary.mjs",
         "preview": "vite preview",
         "test": "vitest run",
         "test:e2e": "playwright test --grep-invert @perf",
@@ -80,5 +81,5 @@
         "typecheck": "tsc --noEmit"
     },
     "type": "module",
-    "version": "0.0.1"
+    "version": "0.0.2"
 }

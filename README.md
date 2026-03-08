@@ -74,16 +74,25 @@ bun run build
 - MapLibre renders a raster basemap as the geographic backdrop
 - React Three Fiber renders the player, scholars, tokens, obstacles, labels, and milestone buildings
 - `react-three-map` bridges the shared WebGL context
-- Movement runs in meter-space and derives geographic coords for camera and collision
-- Camera follow is isolated in `CameraController`
-- Gameplay state is split across persistent progression, transient player state, and level state
+- Level content resolves through route loaders and is validated before the gameplay route mounts
+- Movement rules run through a fixed-timestep simulation boundary and bridge back into committed stores
+- Player placement and camera follow run through the presentation runtime and scene registry
+- Gameplay state is split across persistent progression, transient player state, and transient level state
+- Hot gameplay subscriptions stay out of the top-level route; HUD and completion UI subscribe close to the leaf components that actually need the data
+
+## Audio Note
+
+- The repo currently ships audio cue mappings in [src/content/audio/cues.ts](./src/content/audio/cues.ts), but the checked-in [public/audio](./public/audio) folders only contain placeholder `.gitkeep` files.
+- Because of that, runtime audio now disables itself cleanly at startup when those files are missing instead of repeatedly failing during play.
+- If real audio is added later, place the referenced files under `public/audio/**` so Howler can resolve them directly.
 
 ## Current Limitations
 
 - Player speed is still intentionally compressed for gameplay pacing
 - Levels 2 to 5 are still content scaffolds
 - Hadith excerpts are placeholders and still need sourcing/review
-- The current repo structure works, but the long-term proposed structure is documented in [repo-proposal.md](./docs/repo-proposal.md)
+- Mobile controls, richer audio layering, and denser world rendering are still future work
+- Checked-in audio assets are not present yet, so sound is expected to be disabled in the current repo state
 
 ## License / Assets
 
