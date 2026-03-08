@@ -1,11 +1,10 @@
+import type { ObjectiveStatus } from '@/content/levels/types';
 import type {
     SimulationEvent,
     SimulationLevelState,
     SimulationState,
 } from '@/features/gameplay/simulation/core/SimulationTypes';
 import { resolveNextObjective } from '@/features/gameplay/simulation/systems/CollisionSystem';
-
-import type { ObjectiveStatus } from '@/content/levels/types';
 
 const buildObjectives = (state: SimulationState, levelState: SimulationLevelState): ObjectiveStatus[] => [
     {
@@ -89,9 +88,7 @@ export const applyObjectiveSystem = (
     const statusesMatch = nextObjectiveMatch && objectiveStatusesMatch(levelState.objectives, objectives);
 
     return {
-        events: nextObjectiveMatch
-            ? []
-            : [{ objective: nextObjective, type: 'objective-updated' }],
+        events: nextObjectiveMatch ? [] : [{ objective: nextObjective, type: 'objective-updated' }],
         levelState:
             nextObjectiveMatch && statusesMatch
                 ? levelState
