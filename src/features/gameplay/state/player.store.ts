@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 
 import type { Coords, MeterOffset, TeacherConfig, TokenState } from '@/content/levels/types';
-import { atharDebugLog } from '@/features/debug/debug';
-import { recordPlayerLocationWrite } from '@/features/debug/perf-metrics';
+import {
+    getPlayerRuntimeState,
+    initializePlayerRuntimeState,
+    resetPlayerRuntimeState,
+    setPlayerRuntimeCoords,
+    setPlayerRuntimeLocation,
+    setPlayerRuntimeMotion,
+    updatePlayerRuntimeMovement,
+} from '@/features/gameplay/runtime/player-runtime';
 import type { SimulationPlayerState } from '@/features/gameplay/simulation/core/SimulationTypes';
-import { metersOffsetFromCoords } from '@/shared/geo';
 
 export type PlayerState = {
-    coords: Coords;
-    positionMeters: MeterOffset;
-    bearing: number;
-    speed: number;
     hadithTokens: number;
     isHit: boolean;
     hitTokens: TokenState[];
@@ -37,16 +39,12 @@ export type PlayerState = {
 
 const initialPlayerState = {
     activeTeacher: null,
-    bearing: 0,
-    coords: { lat: 39.77, lng: 64.43 },
     dialogueOpen: false,
     hadithTokens: 0,
     hitTokens: [] as TokenState[],
     isHit: false,
     lastHitAt: 0,
-    positionMeters: { x: 0, z: 0 },
     scrambleUntil: 0,
-    speed: 0,
     startedAt: Date.now(),
     tokensLost: 0,
 };
@@ -85,13 +83,13 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
             };
         }),
     closeDialogue: () => set({ activeTeacher: null, dialogueOpen: false }),
-    initializePlayer: (coords, origin) =>
+    initializePlayer: (coords, origin) => {
+        initializePlayerRuntimeState(coords, origin);
         set({
             ...initialPlayerState,
-            coords,
-            positionMeters: metersOffsetFromCoords(coords, origin),
             startedAt: Date.now(),
-        }),
+        });
+    },
     loseTokens: (count, scatteredTokens, hitAt) =>
         set((state) => ({
             hadithTokens: Math.max(state.hadithTokens - count, 0),
@@ -100,73 +98,19 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
             lastHitAt: hitAt,
             tokensLost: state.tokensLost + count,
         })),
-    openDialogue: (teacher) => set({ activeTeacher: teacher, dialogueOpen: true, speed: 0 }),
-    setBearingAndSpeed: (bearing, speed) =>
-        set((state) => {
-            if (state.bearing === bearing && state.speed === speed) {
-                return state;
-            }
-
-            atharDebugLog('store', 'player:setBearingAndSpeed', { bearing, speed }, { throttleMs: 120 });
-
-            return { bearing, speed };
-        }),
-    setCoords: (coords, origin) =>
-        set((state) => {
-            const nextPositionMeters = metersOffsetFromCoords(coords, origin);
-
-            if (
-                state.coords.lat === coords.lat &&
-                state.coords.lng === coords.lng &&
-                state.positionMeters.x === nextPositionMeters.x &&
-                state.positionMeters.z === nextPositionMeters.z
-            ) {
-                return state;
-            }
-
-            atharDebugLog(
-                'store',
-                'player:setCoords',
-                {
-                    coords,
-                    positionMeters: nextPositionMeters,
-                },
-                { throttleMs: 120 },
-            );
-            recordPlayerLocationWrite();
-
-            return {
-                coords,
-                positionMeters: nextPositionMeters,
-            };
-        }),
-    setLocation: (coords, positionMeters) =>
-        set((state) => {
-            if (
-                state.coords.lat === coords.lat &&
-                state.coords.lng === coords.lng &&
-                state.positionMeters.x === positionMeters.x &&
-                state.positionMeters.z === positionMeters.z
-            ) {
-                return state;
-            }
-
-            atharDebugLog(
-                'store',
-                'player:setLocation',
-                {
-                    coords,
-                    positionMeters,
-                },
-                { throttleMs: 120 },
-            );
-            recordPlayerLocationWrite();
-
-            return {
-                coords,
-                positionMeters,
-            };
-        }),
+    openDialogue: (teacher) => {
+        setPlayerRuntimeMotion(getPlayerRuntimeState().bearing, 0);
+        set({ activeTeacher: teacher, dialogueOpen: true });
+    },
+    setBearingAndSpeed: (bearing, speed) => {
+        setPlayerRuntimeMotion(bearing, speed);
+    },
+    setCoords: (coords, origin) => {
+        setPlayerRuntimeCoords(coords, origin);
+    },
+    setLocation: (coords, positionMeters) => {
+        setPlayerRuntimeLocation(coords, positionMeters);
+    },
     setScramble: (until, hitAt) =>
         set((state) => {
             if (state.scrambleUntil === until && (hitAt === undefined || state.lastHitAt === hitAt)) {
@@ -178,14 +122,8 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
                 scrambleUntil: until,
             };
         }),
-    syncFromSimulation: (player) =>
+    syncFromSimulation: (player) => {
         set((state) => {
-            const locationUnchanged =
-                state.coords.lat === player.coords.lat &&
-                state.coords.lng === player.coords.lng &&
-                state.positionMeters.x === player.positionMeters.x &&
-                state.positionMeters.z === player.positionMeters.z;
-            const motionUnchanged = state.bearing === player.bearing && state.speed === player.speed;
             const runtimeUnchanged =
                 state.activeTeacher === player.activeTeacher &&
                 state.dialogueOpen === player.dialogueOpen &&
@@ -196,82 +134,34 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
                 state.scrambleUntil === player.scrambleUntil &&
                 state.tokensLost === player.tokensLost;
 
-            if (locationUnchanged && motionUnchanged && runtimeUnchanged) {
+            if (runtimeUnchanged) {
                 return state;
-            }
-
-            atharDebugLog(
-                'store',
-                'player:syncFromSimulation',
-                {
-                    bearing: player.bearing,
-                    coords: player.coords,
-                    dialogueOpen: player.dialogueOpen,
-                    hadithTokens: player.hadithTokens,
-                    positionMeters: player.positionMeters,
-                    speed: player.speed,
-                },
-                { throttleMs: 120 },
-            );
-
-            if (!locationUnchanged) {
-                recordPlayerLocationWrite();
             }
 
             return {
                 activeTeacher: player.activeTeacher,
-                bearing: player.bearing,
-                coords: player.coords,
                 dialogueOpen: player.dialogueOpen,
                 hadithTokens: player.hadithTokens,
                 hitTokens: player.hitTokens,
                 isHit: player.isHit,
                 lastHitAt: player.lastHitAt,
-                positionMeters: player.positionMeters,
                 scrambleUntil: player.scrambleUntil,
-                speed: player.speed,
                 tokensLost: player.tokensLost,
             };
-        }),
-    updateMovement: ({ coords, positionMeters, bearing, speed }) =>
-        set((state) => {
-            const locationUnchanged =
-                state.coords.lat === coords.lat &&
-                state.coords.lng === coords.lng &&
-                state.positionMeters.x === positionMeters.x &&
-                state.positionMeters.z === positionMeters.z;
-            const motionUnchanged = state.bearing === bearing && state.speed === speed;
-
-            if (locationUnchanged && motionUnchanged) {
-                return state;
-            }
-
-            atharDebugLog(
-                'store',
-                'player:updateMovement',
-                {
-                    bearing,
-                    coords,
-                    positionMeters,
-                    speed,
-                },
-                { throttleMs: 120 },
-            );
-
-            if (!locationUnchanged) {
-                recordPlayerLocationWrite();
-            }
-
-            return {
-                bearing,
-                coords,
-                positionMeters,
-                speed,
-            };
-        }),
+        });
+    },
+    updateMovement: ({ coords, positionMeters, bearing, speed }) => {
+        updatePlayerRuntimeMovement({
+            bearing,
+            coords,
+            positionMeters,
+            speed,
+        });
+    },
 }));
 
 export const resetPlayerStore = () => {
+    resetPlayerRuntimeState();
     usePlayerStore.setState({
         ...initialPlayerState,
         startedAt: Date.now(),

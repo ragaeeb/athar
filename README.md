@@ -78,6 +78,13 @@ bun run build
 - Movement rules run through a fixed-timestep simulation boundary and bridge back into committed stores
 - Player placement and camera follow run through the presentation runtime and scene registry
 - Gameplay state is split across persistent progression, transient player state, and transient level state
+- Hot gameplay subscriptions stay out of the top-level route; HUD and completion UI subscribe close to the leaf components that actually need the data
+
+## Audio Note
+
+- The repo currently ships audio cue mappings in [src/content/audio/cues.ts](./src/content/audio/cues.ts), but the checked-in [public/audio](./public/audio) folders only contain placeholder `.gitkeep` files.
+- Because of that, runtime audio now disables itself cleanly at startup when those files are missing instead of repeatedly failing during play.
+- If real audio is added later, place the referenced files under `public/audio/**` so Howler can resolve them directly.
 
 ## Current Limitations
 
@@ -85,6 +92,7 @@ bun run build
 - Levels 2 to 5 are still content scaffolds
 - Hadith excerpts are placeholders and still need sourcing/review
 - Mobile controls, richer audio layering, and denser world rendering are still future work
+- Checked-in audio assets are not present yet, so sound is expected to be disabled in the current repo state
 
 ## License / Assets
 

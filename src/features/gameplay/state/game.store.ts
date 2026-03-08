@@ -39,8 +39,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const isCharacterType = (value: unknown): value is CharacterType =>
     typeof value === 'string' && value in CHARACTER_CONFIGS;
 
-const normalizePositiveInteger = (value: unknown, fallback: number) => {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+const normalizeIntegerAtLeast = (value: unknown, fallback: number, minimum = 0) => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum) {
         return fallback;
     }
 
@@ -63,14 +63,14 @@ export const migrateGameProgress = (persistedState: unknown): GameProgressState 
         return persistentDefaults;
     }
 
-    const currentLevel = normalizePositiveInteger(persistedState.currentLevel, persistentDefaults.currentLevel);
+    const currentLevel = normalizeIntegerAtLeast(persistedState.currentLevel, persistentDefaults.currentLevel, 1);
 
     return {
         currentLevel,
         selectedCharacter: isCharacterType(persistedState.selectedCharacter)
             ? persistedState.selectedCharacter
             : persistentDefaults.selectedCharacter,
-        totalHadithVerified: normalizePositiveInteger(
+        totalHadithVerified: normalizeIntegerAtLeast(
             persistedState.totalHadithVerified,
             persistentDefaults.totalHadithVerified,
         ),

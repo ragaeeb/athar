@@ -1,10 +1,14 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
+import type { AudioCue } from '@/content/audio/cues';
 import { CHARACTER_CONFIGS } from '@/content/characters/characters';
 import { audioManager } from '@/features/audio/audio-manager';
+import { atharDebugLog } from '@/features/debug/debug';
 import { recordFrameDeltaMs, recordPlayerMovementTick } from '@/features/debug/perf-metrics';
+import { getActiveSpikeWatch } from '@/features/debug/spike-watch';
 import { getMovementInputSnapshot } from '@/features/gameplay/controllers/input-state';
 import { rendererBridge } from '@/features/gameplay/presentation/PresentationRuntime';
+import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
 import { createSimulationRunner, type SimulationRunner } from '@/features/gameplay/simulation/core/SimulationRunner';
 import type {
     SimulationEvent,
@@ -18,19 +22,20 @@ import { usePlayerStore } from '@/features/gameplay/state/player.store';
 
 const readSimulationPlayerState = (): SimulationPlayerState => {
     const playerState = usePlayerStore.getState();
+    const playerRuntimeState = getPlayerRuntimeState();
 
     return {
         activeTeacher: playerState.activeTeacher,
-        bearing: playerState.bearing,
-        coords: playerState.coords,
+        bearing: playerRuntimeState.bearing,
+        coords: playerRuntimeState.coords,
         dialogueOpen: playerState.dialogueOpen,
         hadithTokens: playerState.hadithTokens,
         hitTokens: playerState.hitTokens,
         isHit: playerState.isHit,
         lastHitAt: playerState.lastHitAt,
-        positionMeters: playerState.positionMeters,
+        positionMeters: playerRuntimeState.positionMeters,
         scrambleUntil: playerState.scrambleUntil,
-        speed: playerState.speed,
+        speed: playerRuntimeState.speed,
         tokensLost: playerState.tokensLost,
     };
 };
@@ -72,8 +77,15 @@ const readSimulationState = (): SimulationState | null => {
 };
 
 const applySimulationEvents = (events: SimulationEvent[]) => {
+    const playedAudioCues = new Set<AudioCue>();
+
     for (const event of events) {
         if (event.type === 'audio') {
+            if (playedAudioCues.has(event.cue)) {
+                continue;
+            }
+
+            playedAudioCues.add(event.cue);
             audioManager.play(event.cue);
         }
 
@@ -92,8 +104,29 @@ export const GameLoop = () => {
     }, [levelId]);
 
     useFrame((_, rawDelta) => {
+        if (!levelId) {
+            return;
+        }
+
         const frameDeltaMs = Math.min(rawDelta, 0.1) * 1_000;
         recordFrameDeltaMs(frameDeltaMs);
+        if (frameDeltaMs > 20) {
+            atharDebugLog('route', 'GAME_LOOP_SPIKE', { frameDeltaMs });
+        }
+
+        const activeSpikeWatch = getActiveSpikeWatch();
+        if (activeSpikeWatch && frameDeltaMs > 16.7) {
+            atharDebugLog(
+                'route',
+                'WATCHED_GAME_LOOP_SPIKE',
+                {
+                    frameDeltaMs,
+                    watchLabel: activeSpikeWatch.label,
+                    watchOffsetMs: performance.now() - activeSpikeWatch.startedAtMs,
+                },
+                { throttleKey: `watched-game-loop-spike:${activeSpikeWatch.label}`, throttleMs: 120 },
+            );
+        }
 
         const state = readSimulationState();
         if (!state || state.levelState.isComplete) {
@@ -110,11 +143,11 @@ export const GameLoop = () => {
             return;
         }
 
+        rendererBridge.consume(result);
         usePlayerStore.getState().syncFromSimulation(result.state.player);
         useLevelStore.getState().syncFromSimulation(result.state.levelState);
-        rendererBridge.consume(result);
         applySimulationEvents(result.events);
-    });
+    }, -1);
 
     return null;
 };

@@ -3,7 +3,7 @@ import type {
     SimulationLevelState,
     SimulationState,
 } from '@/features/gameplay/simulation/core/SimulationTypes';
-import { meetsWinCondition } from '@/features/gameplay/systems/CollisionSystem';
+import { meetsWinCondition } from '@/features/gameplay/simulation/systems/CollisionSystem';
 
 export const applyWinConditionSystem = (
     state: SimulationState,

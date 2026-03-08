@@ -22,19 +22,21 @@ const sizeClasses: Record<ButtonSize, string> = {
     sm: 'px-4 py-2',
 };
 
+export const getButtonClassName = ({
+    className,
+    size = 'md',
+    variant = 'primary',
+}: Pick<ButtonProps, 'className' | 'size' | 'variant'> = {}) =>
+    cn(
+        'inline-flex items-center justify-center rounded-full font-semibold transition focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60',
+        sizeClasses[size],
+        variantClasses[variant],
+        className,
+    );
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, size = 'md', type = 'button', variant = 'primary', ...props }, ref) => (
-        <button
-            ref={ref}
-            type={type}
-            className={cn(
-                'inline-flex items-center justify-center rounded-full font-semibold transition focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60',
-                sizeClasses[size],
-                variantClasses[variant],
-                className,
-            )}
-            {...props}
-        />
+        <button ref={ref} type={type} className={getButtonClassName({ className, size, variant })} {...props} />
     ),
 );
 

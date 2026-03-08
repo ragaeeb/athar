@@ -31,4 +31,30 @@ describe('game.store migrations', () => {
             unlockedLevels: [1],
         });
     });
+
+    it('clamps invalid currentLevel values below 1 during migration', () => {
+        expect(
+            migrateGameProgress({
+                currentLevel: 0,
+                unlockedLevels: [2],
+            }),
+        ).toEqual({
+            currentLevel: 1,
+            selectedCharacter: 'bukhari',
+            totalHadithVerified: 0,
+            unlockedLevels: [1, 2],
+        });
+
+        expect(
+            migrateGameProgress({
+                currentLevel: 0.9,
+                unlockedLevels: [],
+            }),
+        ).toEqual({
+            currentLevel: 1,
+            selectedCharacter: 'bukhari',
+            totalHadithVerified: 0,
+            unlockedLevels: [1],
+        });
+    });
 });

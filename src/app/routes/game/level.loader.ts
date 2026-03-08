@@ -9,6 +9,16 @@ export type GameLevelLoaderData = {
     level: LevelConfig;
 };
 
+const parseGameLevelLoaderData = (value: unknown): GameLevelLoaderData => {
+    if (typeof value !== 'object' || value === null || !('level' in value)) {
+        throw new Error('Invalid game level loader data.');
+    }
+
+    return {
+        level: parseLevelConfig(value.level),
+    };
+};
+
 export const gameLevelLoader = ({ params }: LoaderFunctionArgs): GameLevelLoaderData => {
     const levelId = params.levelId;
     if (!levelId) {
@@ -21,10 +31,10 @@ export const gameLevelLoader = ({ params }: LoaderFunctionArgs): GameLevelLoader
     }
 
     try {
-        return { level: parseLevelConfig(levelDefinition) };
+        return { level: parseLevelConfig(levelDefinition) } satisfies GameLevelLoaderData;
     } catch (error) {
         if (error instanceof ZodError) {
-            throw new Response(`Chapter "${levelId}" failed validation before route mount.`, {
+            throw new Response(`Level "${levelId}" failed validation before route mount.`, {
                 status: 500,
                 statusText: 'Invalid chapter content',
             });
@@ -33,3 +43,5 @@ export const gameLevelLoader = ({ params }: LoaderFunctionArgs): GameLevelLoader
         throw error;
     }
 };
+
+export { parseGameLevelLoaderData };

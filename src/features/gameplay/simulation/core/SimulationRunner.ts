@@ -45,7 +45,7 @@ export const stepSimulation = ({ deltaMs, input, state }: SimulationStepInput): 
         ...nextState,
         player: movement.player,
     };
-    events.push(...movement.events);
+    events.push.apply(events, movement.events);
 
     const encounters = applyEncounterSystems(nextState);
     nextState = {
@@ -53,21 +53,21 @@ export const stepSimulation = ({ deltaMs, input, state }: SimulationStepInput): 
         levelState: encounters.levelState,
         player: encounters.player,
     };
-    events.push(...encounters.events);
+    events.push.apply(events, encounters.events);
 
     const objectives = applyObjectiveSystem(nextState, nextState.levelState);
     nextState = {
         ...nextState,
         levelState: objectives.levelState,
     };
-    events.push(...objectives.events);
+    events.push.apply(events, objectives.events);
 
     const winCondition = applyWinConditionSystem(nextState, nextState.levelState);
     nextState = {
         ...nextState,
         levelState: winCondition.levelState,
     };
-    events.push(...winCondition.events);
+    events.push.apply(events, winCondition.events);
 
     return {
         events,

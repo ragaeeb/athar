@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLoaderData, useNavigate } from 'react-router-dom';
 
-import type { GameLevelLoaderData } from '@/app/routes/game/level.loader';
+import { parseGameLevelLoaderData } from '@/app/routes/game/level.loader';
 import { LEVEL_REGISTRY } from '@/content/levels/registry';
+import type { LevelConfig } from '@/content/levels/types';
 import { audioManager } from '@/features/audio/audio-manager';
 import { useAtharDevTools } from '@/features/debug/dev-tools';
 import { PlayerController } from '@/features/gameplay/controllers/PlayerController';
@@ -16,7 +17,7 @@ import { LevelMap } from '@/features/map/components/LevelMap';
 import { MapRuntimeBoundary } from '@/features/map/components/MapRuntimeBoundary';
 import { MapScene } from '@/features/map/components/MapScene';
 import type { MapRuntimeIssue } from '@/features/map/lib/runtime-issues';
-import { Button } from '@/shared/ui/Button';
+import { Button, getButtonClassName } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Overlay } from '@/shared/ui/Overlay';
 
@@ -28,7 +29,7 @@ const LockedLevelView = () => (
             <p className="mt-4 text-sand-100/75">
                 Complete the current playable chapter to unlock the next leg of Athar.
             </p>
-            <Link to="/" className="mt-6 inline-flex rounded-full bg-gold-400 px-5 py-3 font-semibold text-ink-950">
+            <Link to="/" className={getButtonClassName({ className: 'mt-6' })}>
                 Return Home
             </Link>
         </Card>
@@ -42,13 +43,10 @@ const PreviewLevelView = ({ subtitle, teaser }: { subtitle: string; teaser: stri
             <h1 className="mt-4 font-display text-4xl text-sand-50">{subtitle}</h1>
             <p className="mt-4 text-sand-100/75">{teaser}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/" className="inline-flex rounded-full bg-gold-400 px-5 py-3 font-semibold text-ink-950">
+                <Link to="/" className={getButtonClassName()}>
                     Return Home
                 </Link>
-                <Link
-                    to="/game/level-1"
-                    className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sand-50"
-                >
+                <Link to="/game/level-1" className={getButtonClassName({ variant: 'secondary' })}>
                     Replay Level 1
                 </Link>
             </div>
@@ -56,52 +54,16 @@ const PreviewLevelView = ({ subtitle, teaser }: { subtitle: string; teaser: stri
     </main>
 );
 
-export const GameLevelRoute = () => {
-    const { level } = useLoaderData() as GameLevelLoaderData;
+const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
     const navigate = useNavigate();
-    const [mapResetKey, setMapResetKey] = useState(0);
-    const [runtimeIssue, setRuntimeIssue] = useState<MapRuntimeIssue | null>(null);
-    const unlockedLevels = useGameStore((state) => state.unlockedLevels);
-    const hasAccess = unlockedLevels.includes(level.order);
-    const totalVerified = useGameStore((state) => state.totalHadithVerified);
+    const isComplete = useLevelStore((state) => state.isComplete);
+    const lockedHadith = useLevelStore((state) => state.lockedHadith);
+    const currentTokens = usePlayerStore((state) => state.hadithTokens);
     const teacherCount = useLevelStore((state) => state.completedTeacherIds.length);
     const milestoneCount = useLevelStore((state) => state.completedMilestoneIds.length);
-    const lockedHadith = useLevelStore((state) => state.lockedHadith);
-    const objectives = useLevelStore((state) => state.objectives);
-    const objective = useLevelStore((state) => state.nextObjective);
-    const isComplete = useLevelStore((state) => state.isComplete);
-    const currentTokens = usePlayerStore((state) => state.hadithTokens);
-    const tokensLost = usePlayerStore((state) => state.tokensLost);
-    const startedAt = usePlayerStore((state) => state.startedAt);
 
-    useAtharDevTools(level.id);
-
-    useEffect(() => {
-        if (!level.playable || !hasAccess) {
-            return;
-        }
-
-        useGameStore.getState().startLevel(level.order);
-        usePlayerStore.getState().initializePlayer(level.milestones[0]?.coords ?? level.origin, level.origin);
-        useLevelStore.getState().initializeLevel(level);
-        audioManager.setAmbient(level.ambientCue);
-
-        return () => {
-            audioManager.stopAmbient();
-        };
-    }, [hasAccess, level]);
-
-    useEffect(() => {
-        setRuntimeIssue(null);
-        setMapResetKey(0);
-    }, [level.id]);
-
-    if (!hasAccess) {
-        return <LockedLevelView />;
-    }
-
-    if (!level.playable) {
-        return <PreviewLevelView subtitle={level.subtitle} teaser={level.teaser} />;
+    if (!isComplete) {
+        return null;
     }
 
     const completeLevel = () => {
@@ -118,9 +80,9 @@ export const GameLevelRoute = () => {
             levelId: level.id,
             levelName: level.name,
             levelSubtitle: level.subtitle,
-            teachersMet: teacherCount,
-            timeTakenSeconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000)),
-            tokensLost,
+            teachersMet: useLevelStore.getState().completedTeacherIds.length,
+            timeTakenSeconds: Math.max(1, Math.round((Date.now() - usePlayerStore.getState().startedAt) / 1000)),
+            tokensLost: usePlayerStore.getState().tokensLost,
             verifiedHadith,
         };
 
@@ -130,14 +92,82 @@ export const GameLevelRoute = () => {
     };
 
     return (
+        <Overlay>
+            <Card tone="reward" className="w-full max-w-lg rounded-[2rem] p-8 text-center">
+                <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">Chapter Complete</p>
+                <h2 className="mt-4 font-display text-4xl text-sand-50">{level.subtitle}</h2>
+                <p className="mt-4 text-sand-100/75">{level.completionNarration}</p>
+                <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
+                    <Card tone="muted" className="rounded-2xl p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Hadith</p>
+                        <p className="mt-2 font-mono text-2xl text-gold-400">{lockedHadith + currentTokens}</p>
+                    </Card>
+                    <Card tone="muted" className="rounded-2xl p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Teachers</p>
+                        <p className="mt-2 font-mono text-2xl text-gold-400">{teacherCount}</p>
+                    </Card>
+                    <Card tone="muted" className="rounded-2xl p-4">
+                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Milestones</p>
+                        <p className="mt-2 font-mono text-2xl text-gold-400">{milestoneCount}</p>
+                    </Card>
+                </div>
+                <Button onClick={completeLevel} className="mt-8 px-6">
+                    Continue Athar
+                </Button>
+            </Card>
+        </Overlay>
+    );
+};
+
+export const GameLevelRoute = () => {
+    const loaderData = useLoaderData();
+    const { level } = useMemo(() => parseGameLevelLoaderData(loaderData), [loaderData]);
+    const [mapResetKey, setMapResetKey] = useState(0);
+    const [runtimeIssue, setRuntimeIssue] = useState<MapRuntimeIssue | null>(null);
+    const unlockedLevels = useGameStore((state) => state.unlockedLevels);
+    const hasAccess = unlockedLevels.includes(level.order);
+    const handleRetry = useCallback(() => {
+        setRuntimeIssue(null);
+        setMapResetKey((value) => value + 1);
+    }, []);
+
+    useAtharDevTools(level.id);
+
+    useEffect(() => {
+        if (!level.playable || !hasAccess) {
+            return;
+        }
+
+        useGameStore.getState().startLevel(level.order);
+        usePlayerStore.getState().initializePlayer(level.milestones[0]?.coords ?? level.origin, level.origin);
+        useLevelStore.getState().initializeLevel(level);
+        audioManager.setAmbient(level.ambientCue);
+        const warmupTimerId = window.setTimeout(() => {
+            audioManager.warmup();
+        }, 0);
+
+        return () => {
+            window.clearTimeout(warmupTimerId);
+            audioManager.disposeAll();
+        };
+    }, [hasAccess, level]);
+
+    useEffect(() => {
+        setRuntimeIssue(null);
+        setMapResetKey(0);
+    }, [level.id]);
+
+    if (!hasAccess) {
+        return <LockedLevelView />;
+    }
+
+    if (!level.playable) {
+        return <PreviewLevelView subtitle={level.subtitle} teaser={level.teaser} />;
+    }
+
+    return (
         <main className="relative h-screen w-screen overflow-hidden bg-ink-950">
-            <MapRuntimeBoundary
-                resetKey={`${level.id}:${mapResetKey}`}
-                onRetry={() => {
-                    setRuntimeIssue(null);
-                    setMapResetKey((value) => value + 1);
-                }}
-            >
+            <MapRuntimeBoundary resetKey={`${level.id}:${mapResetKey}`} onRetry={handleRetry}>
                 <MapScene key={`${level.id}:${mapResetKey}`} level={level} onRuntimeIssueChange={setRuntimeIssue}>
                     <PlayerController />
                     <PresentationRuntime origin={level.origin} />
@@ -146,20 +176,16 @@ export const GameLevelRoute = () => {
                 </MapScene>
             </MapRuntimeBoundary>
 
-            <HUD
-                level={level}
-                objective={objective}
-                objectives={objectives}
-                currentTokens={currentTokens}
-                lockedHadith={lockedHadith}
-                totalVerified={totalVerified}
-                teacherCount={teacherCount}
-            />
+            <HUD level={level} />
 
             <div className="pointer-events-none absolute top-4 left-4 z-20 flex gap-3 lg:top-6 lg:left-6">
                 <Link
                     to="/"
-                    className="pointer-events-auto rounded-full border border-white/15 bg-ink-950/92 px-4 py-2 text-sm text-sand-50"
+                    className={getButtonClassName({
+                        className: 'pointer-events-auto bg-ink-950/92 text-sm',
+                        size: 'sm',
+                        variant: 'secondary',
+                    })}
                 >
                     Exit Athar
                 </Link>
@@ -172,18 +198,8 @@ export const GameLevelRoute = () => {
                         <h2 className="mt-4 font-display text-4xl text-sand-50">{runtimeIssue.title}</h2>
                         <p className="mt-4 text-sand-100/75">{runtimeIssue.message}</p>
                         <div className="mt-8 flex flex-wrap justify-center gap-3">
-                            <Button
-                                onClick={() => {
-                                    setRuntimeIssue(null);
-                                    setMapResetKey((value) => value + 1);
-                                }}
-                            >
-                                Retry Rendering
-                            </Button>
-                            <Link
-                                to="/"
-                                className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sand-50"
-                            >
+                            <Button onClick={handleRetry}>Retry Rendering</Button>
+                            <Link to="/" className={getButtonClassName({ variant: 'secondary' })}>
                                 Return Home
                             </Link>
                         </div>
@@ -198,14 +214,7 @@ export const GameLevelRoute = () => {
                         <h2 className="mt-3 font-display text-2xl text-sand-50">{runtimeIssue.title}</h2>
                         <p className="mt-3 text-sm leading-6 text-sand-100/75">{runtimeIssue.message}</p>
                         <div className="mt-4 flex flex-wrap gap-3">
-                            <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => {
-                                    setRuntimeIssue(null);
-                                    setMapResetKey((value) => value + 1);
-                                }}
-                            >
+                            <Button size="sm" variant="secondary" onClick={handleRetry}>
                                 Retry Map
                             </Button>
                             <Button
@@ -222,34 +231,7 @@ export const GameLevelRoute = () => {
                 </div>
             ) : null}
 
-            {isComplete ? (
-                <Overlay>
-                    <Card tone="reward" className="w-full max-w-lg rounded-[2rem] p-8 text-center">
-                        <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">
-                            Chapter Complete
-                        </p>
-                        <h2 className="mt-4 font-display text-4xl text-sand-50">{level.subtitle}</h2>
-                        <p className="mt-4 text-sand-100/75">{level.completionNarration}</p>
-                        <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
-                            <Card tone="muted" className="rounded-2xl p-4">
-                                <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Hadith</p>
-                                <p className="mt-2 font-mono text-2xl text-gold-400">{lockedHadith + currentTokens}</p>
-                            </Card>
-                            <Card tone="muted" className="rounded-2xl p-4">
-                                <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Teachers</p>
-                                <p className="mt-2 font-mono text-2xl text-gold-400">{teacherCount}</p>
-                            </Card>
-                            <Card tone="muted" className="rounded-2xl p-4">
-                                <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Milestones</p>
-                                <p className="mt-2 font-mono text-2xl text-gold-400">{milestoneCount}</p>
-                            </Card>
-                        </div>
-                        <Button onClick={completeLevel} className="mt-8 px-6">
-                            Continue Athar
-                        </Button>
-                    </Card>
-                </Overlay>
-            ) : null}
+            <CompletionOverlay level={level} />
         </main>
     );
 };

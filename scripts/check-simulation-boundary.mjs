@@ -1,18 +1,53 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 const simulationRoot = new URL('../src/features/gameplay/simulation', import.meta.url);
-const forbiddenPatterns = [
-    "@react-three/fiber",
-    "react-map-gl",
-    "react-three-map",
-    "react-dom",
-    "three",
-    "react",
+const simulationRootPath = fileURLToPath(simulationRoot);
+const forbiddenSpecifierPatterns = [
+    /^react(?:\/|$)/,
+    /^react-dom(?:\/|$)/,
+    /^three(?:\/|$)/,
+    /^@react-three(?:\/|$)/,
+    /^react-map-gl(?:\/|$)/,
+    /^react-three-map(?:\/|$)/,
+    /^maplibre-gl(?:\/|$)/,
+    /^@\/features\/map(?:\/|$)/,
+    /^@\/features\/gameplay\/presentation(?:\/|$)/,
 ];
 
 const allowedExtensions = new Set(['.ts', '.tsx']);
 const violations = [];
+
+const collectImportSpecifiers = (source, filePath) => {
+    const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const specifiers = [];
+
+    const visit = (node) => {
+        if (
+            (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+            node.moduleSpecifier &&
+            ts.isStringLiteral(node.moduleSpecifier)
+        ) {
+            specifiers.push(node.moduleSpecifier.text);
+        }
+
+        if (
+            ts.isCallExpression(node) &&
+            node.arguments.length === 1 &&
+            ts.isStringLiteral(node.arguments[0]) &&
+            ((ts.isIdentifier(node.expression) && node.expression.text === 'require') || node.expression.kind === ts.SyntaxKind.ImportKeyword)
+        ) {
+            specifiers.push(node.arguments[0].text);
+        }
+
+        ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+    return specifiers;
+};
 
 const walk = (directoryPath) => {
     for (const entry of readdirSync(directoryPath)) {
@@ -29,15 +64,17 @@ const walk = (directoryPath) => {
         }
 
         const source = readFileSync(absolutePath, 'utf8');
-        for (const pattern of forbiddenPatterns) {
-            if (source.includes(`'${pattern}'`) || source.includes(`"${pattern}"`)) {
-                violations.push(`${absolutePath}: forbidden import "${pattern}"`);
+        const specifiers = collectImportSpecifiers(source, absolutePath);
+
+        for (const specifier of specifiers) {
+            if (forbiddenSpecifierPatterns.some((pattern) => pattern.test(specifier))) {
+                violations.push(`${absolutePath}: forbidden import "${specifier}"`);
             }
         }
     }
 };
 
-walk(simulationRoot.pathname);
+walk(simulationRootPath);
 
 if (violations.length > 0) {
     console.error('Simulation boundary violations detected:');

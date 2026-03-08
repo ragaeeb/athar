@@ -102,12 +102,14 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 - Levels 2–5 are scaffold data, not finished chapters.
 - Teacher/hadith content outside the first slice is still placeholder-heavy.
 - Mobile controls, richer audio, and advanced city/world rendering are not done yet.
+- `public/audio/**` currently contains placeholders only; the app now disables audio at startup when the configured files are missing.
 
 ## Architecture Rules
 
 - Keep authoritative gameplay state separate from per-frame presentation behavior.
 - Keep simulation code pure: no React, DOM, Three, or MapLibre imports inside `src/features/gameplay/simulation/**`.
 - Do not route hot visual transforms through React rerenders unless there is a strong reason.
+- Do not keep hot gameplay Zustand subscriptions in route-level components above `MapScene` / `GameLoop` / `LevelMap`; subscribe in leaf HUD/overlay components instead.
 - Prefer systems / batched runtime logic over per-entity React logic for dirty-flagged or cross-entity behavior.
 - Treat content/config validation as part of the runtime contract, not optional polish.
 
@@ -129,6 +131,7 @@ High-signal channels:
 - `player`
 - `hud`
 - `route`
+- spike/problem events are intentionally logged in all caps, for example `GAME_LOOP_SPIKE`, `PRESENTATION_FRAME_SPIKE`, `LONG_TASK`
 
 ## Perf / Test Bridge
 

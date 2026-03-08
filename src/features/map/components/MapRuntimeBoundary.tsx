@@ -5,6 +5,8 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Overlay } from '@/shared/ui/Overlay';
 
+const shouldLogRuntimeErrors = import.meta.env.DEV;
+
 type MapRuntimeBoundaryProps = {
     children: ReactNode;
     resetKey: number | string;
@@ -27,7 +29,9 @@ export class MapRuntimeBoundary extends Component<MapRuntimeBoundaryProps, MapRu
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('[athar:runtime] gameplay route crashed', error, errorInfo);
+        if (shouldLogRuntimeErrors) {
+            console.error('[athar:runtime] gameplay route crashed', error, errorInfo);
+        }
     }
 
     componentDidUpdate(previousProps: MapRuntimeBoundaryProps) {
@@ -58,7 +62,9 @@ export class MapRuntimeBoundary extends Component<MapRuntimeBoundaryProps, MapRu
                     <p className="mt-4 text-sand-100/75">
                         The map scene crashed before gameplay could continue. Retry the renderer or return home.
                     </p>
-                    <p className="mt-4 font-mono text-xs text-sand-100/60">{this.state.error.message}</p>
+                    <p className="mt-4 font-mono text-xs text-sand-100/60">
+                        An unexpected rendering error occurred. Please retry or return home.
+                    </p>
                     <div className="mt-8 flex flex-wrap justify-center gap-3">
                         <Button onClick={this.handleRetry}>Retry Rendering</Button>
                         <Link

@@ -1,11 +1,11 @@
 import { useAnimations, useGLTF } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { FrontSide, LoopRepeat, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHARACTER_CONFIGS, PLAYER_MODEL_PATH } from '@/content/characters/characters';
 import { atharDebugLog } from '@/features/debug/debug';
+import { usePlayerRuntimeBearing, usePlayerRuntimeSpeed } from '@/features/gameplay/runtime/player-runtime';
 import { useGameStore } from '@/features/gameplay/state/game.store';
-import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import { FEATURE_FLAGS, PLAYER_VISUAL_SCALE } from '@/shared/constants/gameplay';
 
 type CharacterModelProps = {
@@ -145,10 +145,12 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
 
 export const PlayerCharacter = () => {
     const selectedCharacter = useGameStore((state) => state.selectedCharacter);
-    const bearing = usePlayerStore((state) => state.bearing);
-    const speed = usePlayerStore((state) => state.speed);
+    const bearing = usePlayerRuntimeBearing();
+    const speed = usePlayerRuntimeSpeed();
     const config = CHARACTER_CONFIGS[selectedCharacter];
     const visualBearing = Math.PI - bearing;
+    const renderCountRef = useRef(0);
+    renderCountRef.current += 1;
 
     useEffect(() => {
         atharDebugLog('player', 'mounted', {
@@ -167,6 +169,7 @@ export const PlayerCharacter = () => {
             'pose-update',
             {
                 bearing,
+                renderCount: renderCountRef.current,
                 selectedCharacter,
                 speed,
                 visualBearing,

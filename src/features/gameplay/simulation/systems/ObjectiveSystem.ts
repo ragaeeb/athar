@@ -3,9 +3,11 @@ import type {
     SimulationLevelState,
     SimulationState,
 } from '@/features/gameplay/simulation/core/SimulationTypes';
-import { resolveNextObjective } from '@/features/gameplay/systems/CollisionSystem';
+import { resolveNextObjective } from '@/features/gameplay/simulation/systems/CollisionSystem';
 
-const buildObjectives = (state: SimulationState, levelState: SimulationLevelState) => [
+import type { ObjectiveStatus } from '@/content/levels/types';
+
+const buildObjectives = (state: SimulationState, levelState: SimulationLevelState): ObjectiveStatus[] => [
     {
         completed: levelState.lockedHadith >= state.level.winCondition.requiredHadith,
         detail: `${levelState.lockedHadith}/${state.level.winCondition.requiredHadith} preserved`,
@@ -33,6 +35,15 @@ const buildObjectives = (state: SimulationState, levelState: SimulationLevelStat
                 ?.label ?? 'Final milestone',
     },
 ];
+
+const objectiveStatusesMatch = (left: ObjectiveStatus[], right: ObjectiveStatus[]) =>
+    left.length === right.length &&
+    left.every(
+        (entry, index) =>
+            entry.completed === right[index]?.completed &&
+            entry.detail === right[index]?.detail &&
+            entry.id === right[index]?.id,
+    );
 
 const objectivesMatch = (left: SimulationLevelState['nextObjective'], right: SimulationLevelState['nextObjective']) => {
     if (left === right) {
@@ -74,13 +85,15 @@ export const applyObjectiveSystem = (
     );
     const objectives = buildObjectives(state, levelState);
 
+    const nextObjectiveMatch = objectivesMatch(levelState.nextObjective, nextObjective);
+    const statusesMatch = nextObjectiveMatch && objectiveStatusesMatch(levelState.objectives, objectives);
+
     return {
-        events: objectivesMatch(levelState.nextObjective, nextObjective)
+        events: nextObjectiveMatch
             ? []
             : [{ objective: nextObjective, type: 'objective-updated' }],
         levelState:
-            objectivesMatch(levelState.nextObjective, nextObjective) &&
-            JSON.stringify(levelState.objectives) === JSON.stringify(objectives)
+            nextObjectiveMatch && statusesMatch
                 ? levelState
                 : {
                       ...levelState,

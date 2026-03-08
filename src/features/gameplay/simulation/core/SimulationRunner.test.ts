@@ -89,5 +89,18 @@ describe('SimulationRunner', () => {
         expect(result.state.nowMs).toBeCloseTo(initialState.nowMs + DEFAULT_FIXED_TIMESTEP_MS * 2, 5);
         expect(result.state.player.positionMeters.x).toBeGreaterThan(0);
         expect(result.state.player.positionMeters.z).toBeCloseTo(0, 5);
+
+        const flushedRemainder = runner.advance({
+            frameDeltaMs: DEFAULT_FIXED_TIMESTEP_MS * 0.5,
+            input: {
+                moveX: 1,
+                moveZ: 0,
+            },
+            state: result.state,
+        });
+
+        expect(flushedRemainder.didStep).toBe(true);
+        expect(flushedRemainder.state.nowMs).toBeCloseTo(initialState.nowMs + DEFAULT_FIXED_TIMESTEP_MS * 3, 5);
+        expect(flushedRemainder.state.player.positionMeters.x).toBeGreaterThan(result.state.player.positionMeters.x);
     });
 });

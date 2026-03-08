@@ -36,6 +36,11 @@ export const createSceneRegistry = (): SceneRegistry => {
             getPresentationState(id).dirty = true;
         },
         registerEntity: (id, ref) => {
+            if (entityRefs.get(id) === ref) {
+                getPresentationState(id).dirty = true;
+                return;
+            }
+
             entityRefs.set(id, ref);
             getPresentationState(id).dirty = true;
         },

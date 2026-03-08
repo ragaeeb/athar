@@ -99,6 +99,43 @@ export const levelConfigSchema = z
         winCondition: winConditionSchema,
     })
     .superRefine((config, context) => {
+        const assertUnique = (
+            ids: string[],
+            pathForIndex: (index: number) => Array<string | number>,
+            label: string,
+        ) => {
+            const seen = new Set<string>();
+
+            ids.forEach((id, index) => {
+                if (seen.has(id)) {
+                    context.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Duplicate ${label} "${id}"`,
+                        path: pathForIndex(index),
+                    });
+                    return;
+                }
+
+                seen.add(id);
+            });
+        };
+
+        assertUnique(
+            config.teachers.map((teacher) => teacher.id),
+            (index) => ['teachers', index, 'id'],
+            'teacher id',
+        );
+        assertUnique(
+            config.milestones.map((milestone) => milestone.id),
+            (index) => ['milestones', index, 'id'],
+            'milestone id',
+        );
+        assertUnique(
+            config.winCondition.requiredTeachers,
+            (index) => ['winCondition', 'requiredTeachers', index],
+            'required teacher',
+        );
+
         const teacherIds = new Set(config.teachers.map((teacher) => teacher.id));
         const milestoneIds = new Set(config.milestones.map((milestone) => milestone.id));
 

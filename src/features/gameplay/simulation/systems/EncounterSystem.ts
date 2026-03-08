@@ -9,7 +9,7 @@ import {
     findReachedMilestone,
     findTeacherEncounter,
     findTriggeredObstacle,
-} from '@/features/gameplay/systems/CollisionSystem';
+} from '@/features/gameplay/simulation/systems/CollisionSystem';
 import {
     OBSTACLE_HIT_COOLDOWN_MS,
     SCATTER_DURATION_MS,
@@ -135,17 +135,20 @@ const applyObstacleEffects = (
     levelState: SimulationLevelState,
 ): { events: SimulationEvent[]; levelState: SimulationLevelState; player: SimulationPlayerState } => {
     const obstacle = findTriggeredObstacle(player.coords, state.level);
-    const canLoseTokens =
-        obstacle?.type !== 'sandstorm' &&
-        state.nowMs - player.lastHitAt > OBSTACLE_HIT_COOLDOWN_MS &&
-        player.hadithTokens > 0;
-
-    if (!canLoseTokens) {
+    if (
+        !obstacle ||
+        obstacle.type === 'sandstorm' ||
+        state.nowMs - player.lastHitAt <= OBSTACLE_HIT_COOLDOWN_MS ||
+        player.hadithTokens <= 0
+    ) {
         return { events: [], levelState, player };
     }
 
     const baseLostCount = Math.max(1, Math.floor(player.hadithTokens / 2));
-    const lostCount = Math.max(1, Math.round(baseLostCount * state.character.obstacleDamageMultiplier));
+    const lostCount = Math.min(
+        player.hadithTokens,
+        Math.max(1, Math.round(baseLostCount * state.character.obstacleDamageMultiplier)),
+    );
     const scatteredTokens = generateScatterTokens(player.coords, lostCount, state.nowMs + SCATTER_DURATION_MS);
 
     return {
@@ -180,20 +183,20 @@ export const applyEncounterSystems = (
     const collected = collectNearbyTokens(state, player, levelState);
     player = collected.player;
     levelState = collected.levelState;
-    events.push(...collected.events);
+    events.push.apply(events, collected.events);
 
     const dialogue = openTeacherDialogueIfNeeded(state, player, levelState);
     player = dialogue.player;
-    events.push(...dialogue.events);
+    events.push.apply(events, dialogue.events);
 
     const milestone = completeMilestoneIfReached(state, player, levelState);
     levelState = milestone.levelState;
-    events.push(...milestone.events);
+    events.push.apply(events, milestone.events);
 
     const obstacle = applyObstacleEffects(state, player, levelState);
     player = obstacle.player;
     levelState = obstacle.levelState;
-    events.push(...obstacle.events);
+    events.push.apply(events, obstacle.events);
 
     return {
         events,

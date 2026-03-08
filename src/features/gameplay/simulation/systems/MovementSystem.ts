@@ -4,7 +4,7 @@ import type {
     SimulationPlayerState,
     SimulationState,
 } from '@/features/gameplay/simulation/core/SimulationTypes';
-import { resolveMovementStep } from '@/features/gameplay/systems/player-motion';
+import { resolveMovementStep } from '@/features/gameplay/simulation/systems/movement-utils';
 import { BASE_PLAYER_SPEED_METERS_PER_SECOND } from '@/shared/constants/gameplay';
 
 const withStoppedPlayer = (player: SimulationPlayerState): SimulationPlayerState =>

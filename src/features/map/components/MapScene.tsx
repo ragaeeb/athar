@@ -2,7 +2,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { AdaptiveDpr, Environment } from '@react-three/drei';
 import type { ErrorEvent, MapContextEvent } from 'maplibre-gl';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import MapLibreMap, { type MapRef } from 'react-map-gl/maplibre';
 import { Canvas } from 'react-three-map/maplibre';
 import { PCFShadowMap } from 'three';
@@ -30,7 +30,9 @@ type MapSceneProps = {
 export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProps) => {
     const sunPosition = getSunLightPosition(level.origin, level.lighting);
     const mapRef = useRef<MapRef | null>(null);
+    const levelIdRef = useRef(level.id);
     const lastRuntimeIssueSignatureRef = useRef<string | null>(null);
+    const onRuntimeIssueChangeRef = useRef(onRuntimeIssueChange);
     const fallbackMapViewRef = useRef({
         bearing: level.initialView.bearing,
         center: {
@@ -42,7 +44,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
     });
     const [mapLoaded, setMapLoaded] = useState(false);
 
-    const getErrorDetails = (error: unknown): { message: string; type: string | null } => {
+    const getErrorDetails = useCallback((error: unknown): { message: string; type: string | null } => {
         const parseMessage = (value: string) => {
             try {
                 const parsed = JSON.parse(value) as {
@@ -90,34 +92,42 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
             message: 'Map assets failed before the chapter finished loading.',
             type: null,
         };
-    };
+    }, []);
 
-    const updateRuntimeIssue = (issue: MapRuntimeIssue | null) => {
+    const updateRuntimeIssue = useCallback((issue: MapRuntimeIssue | null) => {
         const nextSignature = issue ? `${issue.code}:${issue.message}` : null;
         if (nextSignature === lastRuntimeIssueSignatureRef.current) {
             return;
         }
 
         lastRuntimeIssueSignatureRef.current = nextSignature;
-        onRuntimeIssueChange?.(issue);
+        onRuntimeIssueChangeRef.current?.(issue);
 
         if (issue) {
             atharDebugLog('map', 'runtime-issue', {
                 code: issue.code,
-                levelId: level.id,
+                levelId: levelIdRef.current,
                 message: issue.message,
             });
             return;
         }
 
-        atharDebugLog('map', 'runtime-recovered', { levelId: level.id });
-    };
+        atharDebugLog('map', 'runtime-recovered', { levelId: levelIdRef.current });
+    }, []);
+
+    useEffect(() => {
+        levelIdRef.current = level.id;
+    }, [level.id]);
+
+    useEffect(() => {
+        onRuntimeIssueChangeRef.current = onRuntimeIssueChange;
+    }, [onRuntimeIssueChange]);
 
     useEffect(() => {
         lastRuntimeIssueSignatureRef.current = null;
         setMapLoaded(false);
-        onRuntimeIssueChange?.(null);
-    }, [level.id, onRuntimeIssueChange]);
+        onRuntimeIssueChangeRef.current?.(null);
+    }, [level.id]);
 
     useEffect(() => {
         const readFallbackMapView = () => fallbackMapViewRef.current;
@@ -249,7 +259,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
             map.off('rotatestart', markManualInteraction);
             map.off('pitchstart', markManualInteraction);
         };
-    }, [mapLoaded, level]);
+    }, [level, mapLoaded]);
 
     useEffect(() => {
         if (!mapLoaded || !mapRef.current) {
@@ -278,7 +288,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
             map.off('webglcontextlost', handleContextLost);
             map.off('webglcontextrestored', handleContextRestored);
         };
-    }, [mapLoaded]);
+    }, [getErrorDetails, mapLoaded, updateRuntimeIssue]);
 
     return (
         <MapLibreMap

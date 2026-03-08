@@ -72,7 +72,7 @@ New work should target the canonical structure above and should not reintroduce 
 - `src/app/routes/index.tsx`
   Landing page, scholar selection, progress summary, and level listing.
 - `src/app/routes/game/level-route.tsx`
-  Main gameplay route. Resolves the level, initializes stores, mounts the map and controllers.
+  Main gameplay route. Resolves the level, initializes stores, mounts the map and controllers, and intentionally avoids hot gameplay store subscriptions above the map tree.
 - `src/app/routes/game/complete.tsx`
   Completion summary flow.
 
@@ -125,7 +125,7 @@ New work should target the canonical structure above and should not reintroduce 
 ## HUD Layer
 
 - `src/features/hud/components/**`
-  Active HUD, dialogue, mission panel, counters, and other player-facing overlays.
+  Active HUD, dialogue, mission panel, counters, and other player-facing overlays. Hot HUD subscriptions should live here rather than in the route shell.
 
 ## Debug And Perf Layer
 
@@ -135,6 +135,8 @@ New work should target the canonical structure above and should not reintroduce 
   Perf counters and metrics collection.
 - `src/features/debug/dev-tools.ts`
   Browser-side test/dev bridge used by Playwright and perf tooling.
+- `src/features/debug/spike-watch.ts`
+  Short-lived targeted spike watch windows used to correlate transient hitches with specific UX actions.
 
 ## Current State Philosophy
 
@@ -143,6 +145,7 @@ Athar currently uses Zustand heavily because it is simple and productive, but th
 - reactive store state should hold committed gameplay and product state
 - transient high-frequency presentation data should not automatically become broad reactive app state
 - persistence, completion summaries, and any future history/undo-like systems should only see durable gameplay facts
+- hot subscriptions should be pushed down close to the UI that consumes them so route-level rerenders do not re-diff the map / Three tree during gameplay
 
 This distinction matters because not every moving value in a Three scene is meaningful application state.
 
@@ -220,6 +223,7 @@ This is the current contract for the vertical slice and is already aligned with 
 - runtime recovery for map/rendering faults is intentionally minimal and should expand with denser content
 - `GameLoop` is now mostly a bridge, but broader entity presentation still has room to move further into the registry over time
 - content and historical text remain placeholder-heavy outside Level 1
+- audio cues are configured, but checked-in audio assets are not present in `public/audio/**`, so runtime audio currently disables itself cleanly on startup in repo state
 - accessibility, localization, and content-governance systems are only partially reflected in the runtime today
 
 ## Approved Near-Term Target Architecture
@@ -332,6 +336,7 @@ Approved target:
 Approved target:
 
 - do not drive per-frame transforms through broad reactive subscriptions
+- do not keep hot gameplay subscriptions in route shells when only HUD/overlay leaves need them
 - do not allow unbudgeted camera update/event churn
 - use instancing and culling for repeated high-count entities
 - pin bridge dependencies such as `react-three-map` exactly and update them only with senior review and smoke testing
@@ -366,6 +371,4 @@ That is the point where this document’s current-state and target-state section
 
 - `README.md`
 - `AGENTS.md`
-- `docs/revised-plan.md`
-- `docs/phase-0-1-plan.md`
 - `docs/branding.md`

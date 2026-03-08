@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { useEffect, useId, useRef } from 'react';
 import { audioManager } from '@/features/audio/audio-manager';
+import { atharDebugLog } from '@/features/debug/debug';
+import { beginSpikeWatch } from '@/features/debug/spike-watch';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
@@ -74,13 +76,27 @@ export const DialogueBox = () => {
         return null;
     }
 
+    const runDialogueAction = (action: 'continue-athar' | 'receive-hadith', callback: () => void) => {
+        const startedAtMs = performance.now();
+        beginSpikeWatch(`dialogue:${action}:${teacher.id}`);
+        callback();
+
+        const durationMs = performance.now() - startedAtMs;
+        atharDebugLog('hud', 'DIALOGUE_ACTION', { action, durationMs, teacherId: teacher.id });
+        if (durationMs > 8) {
+            atharDebugLog('hud', 'DIALOGUE_ACTION_SPIKE', { action, durationMs, teacherId: teacher.id });
+        }
+    };
+
     const onReceiveHadith = () => {
-        const bankedTokens = usePlayerStore.getState().bankTokens();
-        useLevelStore.getState().addLockedHadith(bankedTokens);
-        useLevelStore.getState().completeTeacher(teacher.id);
-        useGameStore.getState().addVerifiedHadith(bankedTokens);
-        usePlayerStore.getState().closeDialogue();
-        audioManager.play('receive-hadith');
+        runDialogueAction('receive-hadith', () => {
+            const bankedTokens = usePlayerStore.getState().bankTokens();
+            useLevelStore.getState().addLockedHadith(bankedTokens);
+            useLevelStore.getState().completeTeacher(teacher.id);
+            useGameStore.getState().addVerifiedHadith(bankedTokens);
+            usePlayerStore.getState().closeDialogue();
+            audioManager.play('receive-hadith');
+        });
     };
 
     return (
@@ -116,8 +132,10 @@ export const DialogueBox = () => {
                     </Button>
                     <Button
                         onClick={() => {
-                            useLevelStore.getState().completeTeacher(teacher.id);
-                            usePlayerStore.getState().closeDialogue();
+                            runDialogueAction('continue-athar', () => {
+                                useLevelStore.getState().completeTeacher(teacher.id);
+                                usePlayerStore.getState().closeDialogue();
+                            });
                         }}
                         variant="secondary"
                     >

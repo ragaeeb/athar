@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { getPerfSnapshot, resetPerfMetrics } from '@/features/debug/perf-metrics';
+import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
 import { resetPlayerStore, usePlayerStore } from '@/features/gameplay/state/player.store';
 
 describe('player store perf safety', () => {
@@ -15,8 +16,8 @@ describe('player store perf safety', () => {
             updates += 1;
         });
 
-        const initialState = usePlayerStore.getState();
-        usePlayerStore.getState().setLocation(initialState.coords, initialState.positionMeters);
+        const initialRuntime = getPlayerRuntimeState();
+        usePlayerStore.getState().setLocation(initialRuntime.coords, initialRuntime.positionMeters);
 
         unsubscribe();
 
@@ -48,7 +49,7 @@ describe('player store perf safety', () => {
 
         unsubscribe();
 
-        expect(updates).toBe(1);
+        expect(updates).toBe(0);
         expect(getPerfSnapshot().player.locationWriteCount).toBe(1);
     });
 
@@ -64,8 +65,8 @@ describe('player store perf safety', () => {
 
         unsubscribe();
 
-        expect(updates).toBe(1);
-        expect(usePlayerStore.getState().bearing).toBe(Math.PI / 2);
-        expect(usePlayerStore.getState().speed).toBe(1_000);
+        expect(updates).toBe(0);
+        expect(getPlayerRuntimeState().bearing).toBe(Math.PI / 2);
+        expect(getPlayerRuntimeState().speed).toBe(1_000);
     });
 });

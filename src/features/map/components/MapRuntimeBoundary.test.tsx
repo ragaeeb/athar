@@ -17,28 +17,30 @@ describe('MapRuntimeBoundary', () => {
         const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         const onRetry = vi.fn();
 
-        const view = render(
-            <MemoryRouter>
-                <MapRuntimeBoundary resetKey={0} onRetry={onRetry}>
-                    <Thrower explode />
-                </MapRuntimeBoundary>
-            </MemoryRouter>,
-        );
+        try {
+            const view = render(
+                <MemoryRouter>
+                    <MapRuntimeBoundary resetKey={0} onRetry={onRetry}>
+                        <Thrower explode />
+                    </MapRuntimeBoundary>
+                </MemoryRouter>,
+            );
 
-        expect(screen.getByText('Gameplay Render Failure')).toBeInTheDocument();
-        expect(screen.getByText('boom')).toBeInTheDocument();
+            expect(screen.getByText('Gameplay Render Failure')).toBeInTheDocument();
+            expect(screen.getByText(/unexpected rendering error occurred/i)).toBeInTheDocument();
 
-        view.rerender(
-            <MemoryRouter>
-                <MapRuntimeBoundary resetKey={1} onRetry={onRetry}>
-                    <Thrower explode={false} />
-                </MapRuntimeBoundary>
-            </MemoryRouter>,
-        );
+            view.rerender(
+                <MemoryRouter>
+                    <MapRuntimeBoundary resetKey={1} onRetry={onRetry}>
+                        <Thrower explode={false} />
+                    </MapRuntimeBoundary>
+                </MemoryRouter>,
+            );
 
-        expect(screen.getByText('scene ok')).toBeInTheDocument();
-        expect(onRetry).not.toHaveBeenCalled();
-
-        consoleErrorSpy.mockRestore();
+            expect(screen.getByText('scene ok')).toBeInTheDocument();
+            expect(onRetry).not.toHaveBeenCalled();
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 });
