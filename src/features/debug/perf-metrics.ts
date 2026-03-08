@@ -73,6 +73,7 @@ const state: PerfSnapshot = {
 
 const frameSamplesMs: number[] = [];
 let lastManualMapInteractionAt = 0;
+let manualCameraOverrideActive = false;
 let mapViewController: MapViewController | null = null;
 
 const nearestRankPercentile = (values: number[], percentile: number) => {
@@ -171,6 +172,7 @@ export const updateMapViewSnapshot = (view: MapViewSnapshot) => {
 
 export const recordManualMapInteraction = (now = performance.now()) => {
     lastManualMapInteractionAt = now;
+    manualCameraOverrideActive = true;
 
     if (shouldTrackPerfMetrics) {
         state.map.manualInteractionCount += 1;
@@ -178,6 +180,10 @@ export const recordManualMapInteraction = (now = performance.now()) => {
 };
 
 export const getLastManualMapInteractionAt = () => lastManualMapInteractionAt;
+export const isManualCameraOverrideActive = () => manualCameraOverrideActive;
+export const clearManualCameraOverride = () => {
+    manualCameraOverrideActive = false;
+};
 
 export const resetPerfMetrics = () => {
     if (!shouldTrackPerfMetrics) {
@@ -186,6 +192,7 @@ export const resetPerfMetrics = () => {
 
     frameSamplesMs.length = 0;
     lastManualMapInteractionAt = 0;
+    manualCameraOverrideActive = false;
 
     state.camera.followCount = 0;
     state.camera.maxAppliedStepMeters = 0;

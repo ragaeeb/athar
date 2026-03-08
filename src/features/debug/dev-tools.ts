@@ -5,9 +5,11 @@ import { getLevelById } from '@/content/levels/registry';
 import type { Coords } from '@/content/levels/types';
 import { atharDebugLog, installAtharDebugControls } from '@/features/debug/debug';
 import {
+    clearManualCameraOverride,
     getLastManualMapInteractionAt,
     getPerfMapViewController,
     getPerfSnapshot,
+    isManualCameraOverrideActive,
     type PerfSnapshot,
     recordCameraFollow,
     recordCameraFollowCooldownSkip,
@@ -26,12 +28,11 @@ import { resolveMovementStep } from '@/features/gameplay/simulation/systems/move
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
-import { resolveCameraFollow, shouldAutoFollowCamera } from '@/features/gameplay/systems/player-motion';
+import { resolveCameraSnapFollow, shouldAutoFollowCamera } from '@/features/gameplay/systems/player-motion';
 import { BASE_PLAYER_SPEED_METERS_PER_SECOND } from '@/shared/constants/gameplay';
+import { worldDistanceInMeters } from '@/shared/geo';
 
-const PERF_CAMERA_FOLLOW_DAMPING = 10;
-const PERF_CAMERA_FOLLOW_DEADZONE_METERS = 80;
-const PERF_CAMERA_FOLLOW_MAX_SPEED_MPS = BASE_PLAYER_SPEED_METERS_PER_SECOND * 1.5;
+const PERF_CAMERA_FOLLOW_SNAP_DEADZONE_METERS = 12_000;
 const PERF_MANUAL_CAMERA_INTERACTION_COOLDOWN_MS = 900;
 
 type AtharDevTools = {
@@ -110,17 +111,25 @@ const applySimulatedMovementStep = ({
 };
 
 const applySimulatedCameraFollow = ({
-    delta,
     mapViewController,
     scenarioNow,
 }: {
-    delta: number;
     mapViewController: NonNullable<ReturnType<typeof getPerfMapViewController>>;
     scenarioNow: number;
 }) => {
     const currentMapView = mapViewController.getMapView();
     if (!currentMapView.center) {
         return;
+    }
+
+    const targetCoords = getPlayerRuntimeState().coords;
+    if (isManualCameraOverrideActive()) {
+        if (worldDistanceInMeters(targetCoords, currentMapView.center) <= PERF_CAMERA_FOLLOW_SNAP_DEADZONE_METERS) {
+            clearManualCameraOverride();
+        } else {
+            recordCameraFollowCooldownSkip();
+            return;
+        }
     }
 
     const autoFollowEnabled = shouldAutoFollowCamera({
@@ -134,13 +143,10 @@ const applySimulatedCameraFollow = ({
         return;
     }
 
-    const follow = resolveCameraFollow({
+    const follow = resolveCameraSnapFollow({
         currentCenter: currentMapView.center,
-        damping: PERF_CAMERA_FOLLOW_DAMPING,
-        deadzoneMeters: PERF_CAMERA_FOLLOW_DEADZONE_METERS,
-        delta,
-        maxSpeedMetersPerSecond: PERF_CAMERA_FOLLOW_MAX_SPEED_MPS,
-        targetCoords: getPlayerRuntimeState().coords,
+        deadzoneMeters: PERF_CAMERA_FOLLOW_SNAP_DEADZONE_METERS,
+        targetCoords,
     });
 
     if (!follow.moved) {
@@ -197,7 +203,6 @@ const simulatePerfFramesForLevel = ({
         scenarioNow += stepMs;
         scenarioEpochNow += stepMs;
         applySimulatedCameraFollow({
-            delta,
             mapViewController,
             scenarioNow,
         });

@@ -21,6 +21,8 @@ import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
 
 const PLAYER_ENTITY_ID = 'player';
+const GAME_LOOP_SPIKE_THRESHOLD_MS = 25;
+const WATCHED_GAME_LOOP_SPIKE_THRESHOLD_MS = 22;
 
 const readSimulationPlayerState = (): SimulationPlayerState => {
     const playerState = usePlayerStore.getState();
@@ -117,12 +119,12 @@ export const GameLoop = () => {
         lastFrameAtMsRef.current = nowMs;
 
         recordFrameDeltaMs(frameDeltaMs);
-        if (frameDeltaMs > 20) {
+        if (frameDeltaMs > GAME_LOOP_SPIKE_THRESHOLD_MS) {
             atharDebugLog('route', 'GAME_LOOP_SPIKE', { frameDeltaMs });
         }
 
         const activeSpikeWatch = getActiveSpikeWatch();
-        if (activeSpikeWatch && frameDeltaMs > 16.7) {
+        if (activeSpikeWatch && frameDeltaMs > WATCHED_GAME_LOOP_SPIKE_THRESHOLD_MS) {
             atharDebugLog(
                 'route',
                 'WATCHED_GAME_LOOP_SPIKE',
@@ -131,7 +133,7 @@ export const GameLoop = () => {
                     watchLabel: activeSpikeWatch.label,
                     watchOffsetMs: nowMs - activeSpikeWatch.startedAtMs,
                 },
-                { throttleKey: `watched-game-loop-spike:${activeSpikeWatch.label}`, throttleMs: 120 },
+                { throttleKey: `watched-game-loop-spike:${activeSpikeWatch.label}`, throttleMs: 250 },
             );
         }
 

@@ -1,4 +1,19 @@
-type AtharDebugChannel = 'camera' | 'controller' | 'player' | 'player-marker' | 'hud' | 'map' | 'route' | 'store';
+import {
+    getMotionDiagnosticFrames,
+    getMotionDiagnosticSummary,
+    resetMotionDiagnostics,
+} from '@/features/debug/motion-diagnostics';
+
+type AtharDebugChannel =
+    | 'camera'
+    | 'controller'
+    | 'hud'
+    | 'map'
+    | 'motion'
+    | 'player'
+    | 'player-marker'
+    | 'route'
+    | 'store';
 
 type AtharDebugEntry = {
     timestamp: string;
@@ -13,6 +28,8 @@ type AtharDebugControls = {
     disable: () => void;
     enable: () => void;
     logs: AtharDebugEntry[];
+    motionFrames: () => ReturnType<typeof getMotionDiagnosticFrames>;
+    motionSummary: () => ReturnType<typeof getMotionDiagnosticSummary>;
     text: () => string;
 };
 
@@ -133,6 +150,7 @@ const syncWindowControls = () => {
     windowWithDebug.__atharDebug__ = {
         clear: () => {
             logBuffer.length = 0;
+            resetMotionDiagnostics();
             console.info('[athar:debug] cleared log buffer');
         },
         disable: () => {
@@ -147,6 +165,8 @@ const syncWindowControls = () => {
         },
         enabled: debugEnabled,
         logs: logBuffer,
+        motionFrames: () => getMotionDiagnosticFrames(),
+        motionSummary: () => getMotionDiagnosticSummary(),
         text: () => logBuffer.map((entry) => formatDebugLine(entry)).join('\n'),
     };
 };
@@ -158,6 +178,8 @@ export const installAtharDebugControls = () => {
 
     syncWindowControls();
 };
+
+export const isAtharDebugEnabled = () => import.meta.env.DEV && debugEnabled;
 
 export const atharDebugLog = (
     channel: AtharDebugChannel,

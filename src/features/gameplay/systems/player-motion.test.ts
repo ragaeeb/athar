@@ -3,7 +3,71 @@ import { describe, expect, it } from 'vitest';
 import { level1 } from '@/content/levels/level-1/config';
 import { worldDistanceInMeters } from '@/features/map/lib/geo';
 
-import { resolveCameraFollow, resolveMovementStep, shouldAutoFollowCamera } from './player-motion';
+import {
+    resolveCameraFollow,
+    resolveCameraSnapFollow,
+    resolveMovementStep,
+    resolveScreenSpaceFollowCorrection,
+    shouldAutoFollowCamera,
+} from './player-motion';
+
+const simulateScreenSpaceFollowTrace = ({
+    cooldownMs,
+    deadzoneXFraction,
+    deadzoneYFraction,
+    driftXPerFrame,
+    driftYPerFrame,
+    frames,
+    minimumCorrectionPx,
+    viewportHeight,
+    viewportWidth,
+}: {
+    cooldownMs: number;
+    deadzoneXFraction: number;
+    deadzoneYFraction: number;
+    driftXPerFrame: number;
+    driftYPerFrame: number;
+    frames: number;
+    minimumCorrectionPx: number;
+    viewportHeight: number;
+    viewportWidth: number;
+}) => {
+    const point = { x: viewportWidth / 2, y: viewportHeight / 2 };
+    let lastCommitAtMs = Number.NEGATIVE_INFINITY;
+    const corrections: number[] = [];
+    const commitFrameIndices: number[] = [];
+
+    for (let frameIndex = 0; frameIndex < frames; frameIndex += 1) {
+        point.x += driftXPerFrame;
+        point.y += driftYPerFrame;
+
+        const correction = resolveScreenSpaceFollowCorrection({
+            deadzoneXFraction,
+            deadzoneYFraction,
+            minimumCorrectionPx,
+            point,
+            viewportHeight,
+            viewportWidth,
+        });
+
+        const nowMs = frameIndex * 16.67;
+        if (!correction.moved || nowMs - lastCommitAtMs < cooldownMs) {
+            continue;
+        }
+
+        commitFrameIndices.push(frameIndex);
+        corrections.push(correction.correctionMagnitudePx);
+        point.x -= correction.cameraDeltaPx.x;
+        point.y -= correction.cameraDeltaPx.y;
+        lastCommitAtMs = nowMs;
+    }
+
+    return {
+        commitFrameIndices,
+        corrections,
+        point,
+    };
+};
 
 describe('player motion', () => {
     it('returns a neutral no-movement result when no input is pressed', () => {
@@ -248,6 +312,36 @@ describe('player motion', () => {
         expect(follow.nextCenter).toEqual(target);
     });
 
+    it('keeps the camera fixed until the snap deadzone is exceeded', () => {
+        const center = level1.origin;
+        const nearbyTarget = {
+            lat: center.lat,
+            lng: center.lng + 0.01,
+        };
+        const distantTarget = {
+            lat: center.lat,
+            lng: center.lng + 0.2,
+        };
+
+        const still = resolveCameraSnapFollow({
+            currentCenter: center,
+            deadzoneMeters: 12_000,
+            targetCoords: nearbyTarget,
+        });
+        const snapped = resolveCameraSnapFollow({
+            currentCenter: center,
+            deadzoneMeters: 12_000,
+            targetCoords: distantTarget,
+        });
+
+        expect(still.moved).toBe(false);
+        expect(still.nextCenter).toEqual(center);
+
+        expect(snapped.moved).toBe(true);
+        expect(snapped.nextCenter).toEqual(distantTarget);
+        expect(snapped.appliedStepMeters).toBeCloseTo(worldDistanceInMeters(distantTarget, center), 3);
+    });
+
     it('suppresses auto-follow during the manual camera interaction cooldown', () => {
         expect(
             shouldAutoFollowCamera({
@@ -264,5 +358,98 @@ describe('player motion', () => {
                 now: 1_901,
             }),
         ).toBe(true);
+    });
+
+    it('keeps screen-space follow still when the player remains inside the safe zone', () => {
+        const correction = resolveScreenSpaceFollowCorrection({
+            deadzoneXFraction: 0.38,
+            deadzoneYFraction: 0.28,
+            point: { x: 640, y: 360 },
+            viewportHeight: 720,
+            viewportWidth: 1_280,
+        });
+
+        expect(correction.moved).toBe(false);
+        expect(correction.cameraDeltaPx).toEqual({ x: 0, y: 0 });
+        expect(correction.targetPoint).toEqual({ x: 640, y: 360 });
+    });
+
+    it('corrects only the overflow beyond the screen-space deadzone instead of recentering fully', () => {
+        const correction = resolveScreenSpaceFollowCorrection({
+            deadzoneXFraction: 0.25,
+            deadzoneYFraction: 0.2,
+            point: { x: 1_040, y: 560 },
+            viewportHeight: 720,
+            viewportWidth: 1_280,
+        });
+
+        expect(correction.moved).toBe(true);
+        expect(correction.targetPoint).toEqual({ x: 960, y: 504 });
+        expect(correction.cameraDeltaPx).toEqual({ x: 80, y: 56 });
+        expect(correction.correctionMagnitudePx).toBeCloseTo(Math.hypot(80, 56), 5);
+    });
+
+    it('ignores tiny screen-space overflows below the correction threshold', () => {
+        const correction = resolveScreenSpaceFollowCorrection({
+            deadzoneXFraction: 0.25,
+            deadzoneYFraction: 0.2,
+            minimumCorrectionPx: 12,
+            point: { x: 965, y: 508 },
+            viewportHeight: 720,
+            viewportWidth: 1_280,
+        });
+
+        expect(correction.correctionMagnitudePx).toBeCloseTo(Math.hypot(5, 4), 5);
+        expect(correction.moved).toBe(false);
+        expect(correction.cameraDeltaPx).toEqual({ x: 0, y: 0 });
+        expect(correction.targetPoint).toEqual({ x: 965, y: 508 });
+    });
+
+    it('keeps steady vertical auto-follow corrections bounded under realistic drift', () => {
+        const trace = simulateScreenSpaceFollowTrace({
+            cooldownMs: 280,
+            deadzoneXFraction: 0.38,
+            deadzoneYFraction: 0.28,
+            driftXPerFrame: 0,
+            driftYPerFrame: 2.5,
+            frames: 180,
+            minimumCorrectionPx: 12,
+            viewportHeight: 720,
+            viewportWidth: 1_280,
+        });
+
+        expect(trace.corrections.length).toBeGreaterThan(0);
+        expect(Math.max(...trace.corrections)).toBeLessThan(60);
+        expect(Math.min(...trace.corrections)).toBeGreaterThanOrEqual(12);
+        expect(
+            trace.commitFrameIndices.every(
+                (frame, index) => index === 0 || frame - trace.commitFrameIndices[index - 1]! >= 16,
+            ),
+        ).toBe(true);
+    });
+
+    it('keeps diagonal auto-follow corrections bounded under realistic drift', () => {
+        const trace = simulateScreenSpaceFollowTrace({
+            cooldownMs: 280,
+            deadzoneXFraction: 0.38,
+            deadzoneYFraction: 0.28,
+            driftXPerFrame: 1.8,
+            driftYPerFrame: 1.8,
+            frames: 180,
+            minimumCorrectionPx: 12,
+            viewportHeight: 720,
+            viewportWidth: 1_280,
+        });
+
+        expect(trace.corrections.length).toBeGreaterThan(0);
+        expect(Math.max(...trace.corrections)).toBeLessThan(70);
+        expect(Math.min(...trace.corrections)).toBeGreaterThanOrEqual(12);
+        expect(
+            trace.commitFrameIndices.every(
+                (frame, index) => index === 0 || frame - trace.commitFrameIndices[index - 1]! >= 16,
+            ),
+        ).toBe(true);
+        expect(Math.abs(trace.point.x - 640)).toBeLessThan(360);
+        expect(Math.abs(trace.point.y - 360)).toBeLessThan(260);
     });
 });

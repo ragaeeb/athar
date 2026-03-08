@@ -69,6 +69,50 @@ test('@perf manual zoom stays manual', async ({ page }) => {
     expect(Math.abs((currentView?.center?.lng ?? 0) - (initialView?.center?.lng ?? 0))).toBeLessThan(0.0001);
 });
 
+test('@perf manual pan away from the player stays manual while simulation advances', async ({ page }) => {
+    await startLevelOne(page);
+
+    const initialView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const manualCenter = {
+        lat: (initialView?.center?.lat ?? 39.77) - 1.6,
+        lng: (initialView?.center?.lng ?? 64.43) + 2.2,
+    };
+
+    await page.evaluate(() => {
+        (window as AtharPerfWindow).__atharDev__?.resetPerfMetrics();
+    });
+
+    await page.evaluate(
+        ({ center, zoom }) => {
+            (window as AtharPerfWindow).__atharDev__?.setMapView({
+                center,
+                zoom,
+            });
+        },
+        {
+            center: manualCenter,
+            zoom: 8.1,
+        },
+    );
+
+    await page.evaluate(() => {
+        (window as AtharPerfWindow).__atharDev__?.simulatePerfFrames({
+            durationMs: 1_250,
+            moveX: 1,
+            moveZ: 0,
+        });
+    });
+
+    const snapshot = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getPerfSnapshot());
+    const currentView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+
+    expect(snapshot?.camera.followCount).toBe(0);
+    expect(snapshot?.camera.skippedDuringCooldownCount).toBeGreaterThan(0);
+    expect(snapshot?.map.manualInteractionCount).toBeGreaterThan(0);
+    expect(Math.abs((currentView?.center?.lat ?? 0) - manualCenter.lat)).toBeLessThan(0.0001);
+    expect(Math.abs((currentView?.center?.lng ?? 0) - manualCenter.lng)).toBeLessThan(0.0001);
+});
+
 test('@perf zoomed-out travel stays bounded', async ({ page }) => {
     await startLevelOne(page);
 

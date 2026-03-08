@@ -1,14 +1,59 @@
-import { Billboard, Text } from '@react-three/drei';
+import { Billboard, Text, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
-import type { Group } from 'three';
-
+import type { Group, MeshStandardMaterial } from 'three';
 import type { TeacherConfig } from '@/content/levels/types';
+import { TRAVELING_SCHOLAR_MODEL_PATH } from '@/content/models/scene-models';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { TEACHER_VISUAL_SCALE } from '@/shared/constants/gameplay';
+import { GLTFSceneModel } from '@/shared/three/GLTFSceneModel';
 
 type TeacherNPCProps = {
     teacher: TeacherConfig;
+};
+
+const styleScholarMaterial = (material: MeshStandardMaterial) => {
+    const materialName = material.name.toLowerCase();
+
+    if (materialName.includes('head') || materialName.includes('hand')) {
+        material.color.set('#c58e67');
+        material.emissive.set('#8c6047');
+        return;
+    }
+
+    if (materialName.includes('outer')) {
+        material.color.set('#7388a3');
+        material.emissive.set('#43566d');
+        return;
+    }
+
+    if (materialName.includes('inner') || materialName.includes('syal')) {
+        material.color.set('#dcc9a1');
+        material.emissive.set('#8f7b56');
+        return;
+    }
+
+    if (materialName.includes('pants')) {
+        material.color.set('#29324d');
+        material.emissive.set('#1d2336');
+        return;
+    }
+
+    if (
+        materialName.includes('belt') ||
+        materialName.includes('shoe') ||
+        materialName.includes('hat') ||
+        materialName.includes('revolver')
+    ) {
+        material.color.set('#36271b');
+        material.emissive.set('#24190f');
+        return;
+    }
+
+    if (materialName.includes('gold')) {
+        material.color.set('#b9923c');
+        material.emissive.set('#7f5d1d');
+    }
 };
 
 export const TeacherNPC = ({ teacher }: TeacherNPCProps) => {
@@ -25,17 +70,19 @@ export const TeacherNPC = ({ teacher }: TeacherNPCProps) => {
 
     return (
         <group ref={groupRef} scale={TEACHER_VISUAL_SCALE}>
-            <mesh castShadow>
-                <capsuleGeometry args={[0.5, 1.8, 8, 14]} />
-                <meshStandardMaterial
-                    color={completed ? '#8f9fa7' : '#60a5fa'}
-                    emissive={completed ? '#64748b' : '#8ecae6'}
-                    emissiveIntensity={completed ? 0.25 : 0.9}
-                />
-            </mesh>
-            <mesh position={[0, 1.3, 0]}>
+            <GLTFSceneModel
+                materialCustomizer={styleScholarMaterial}
+                modelPath={TRAVELING_SCHOLAR_MODEL_PATH}
+                rotation={[0, Math.PI, 0]}
+                targetHeight={2.6}
+            />
+            <mesh position={[0, 1.55, 0]}>
                 <torusGeometry args={[0.85, 0.08, 12, 32]} />
-                <meshStandardMaterial color="#f4d35e" emissive="#f4d35e" emissiveIntensity={0.9} />
+                <meshStandardMaterial
+                    color={completed ? '#8f9fa7' : '#f4d35e'}
+                    emissive={completed ? '#64748b' : '#f4d35e'}
+                    emissiveIntensity={completed ? 0.3 : 0.9}
+                />
             </mesh>
             <Billboard position={[0, 3, 0]}>
                 <Text
@@ -52,3 +99,5 @@ export const TeacherNPC = ({ teacher }: TeacherNPCProps) => {
         </group>
     );
 };
+
+useGLTF.preload(TRAVELING_SCHOLAR_MODEL_PATH);

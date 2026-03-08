@@ -1,35 +1,82 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { coordsToVector3, useMap } from 'react-three-map/maplibre';
+import { useMap } from 'react-three-map/maplibre';
+import { Vector3 } from 'three';
 
 import type { Coords } from '@/content/levels/types';
-import { atharDebugLog } from '@/features/debug/debug';
+import { atharDebugLog, isAtharDebugEnabled } from '@/features/debug/debug';
 import {
+    type MotionDiagnosticEvent,
+    recordMotionDiagnosticFrame,
+    resetMotionDiagnostics,
+} from '@/features/debug/motion-diagnostics';
+import {
+    clearManualCameraOverride,
     getLastManualMapInteractionAt,
+    isManualCameraOverrideActive,
     recordCameraFollow,
     recordCameraFollowCooldownSkip,
 } from '@/features/debug/perf-metrics';
 import { getActiveSpikeWatch } from '@/features/debug/spike-watch';
+import { positionMetersToPlayerLocalPosition } from '@/features/gameplay/presentation/player-local-position';
 import { sceneRegistry } from '@/features/gameplay/presentation/SceneRegistry';
 import { updatePlayerRuntimeMovement } from '@/features/gameplay/runtime/player-runtime';
 import { drainForPresentation } from '@/features/gameplay/runtime/simulation-bridge';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
-import { resolveCameraFollow, shouldAutoFollowCamera } from '@/features/gameplay/systems/player-motion';
-import { BASE_PLAYER_SPEED_METERS_PER_SECOND } from '@/shared/constants/gameplay';
+import { resolveScreenSpaceFollowCorrection, shouldAutoFollowCamera } from '@/features/gameplay/systems/player-motion';
+import { worldDistanceInMeters } from '@/shared/geo';
 
 const PLAYER_ENTITY_ID = 'player';
-const CAMERA_FOLLOW_DAMPING = 10;
-const CAMERA_FOLLOW_DEADZONE_METERS = 80;
-const CAMERA_FOLLOW_MAX_SPEED_MPS = BASE_PLAYER_SPEED_METERS_PER_SECOND * 1.5;
-const CAMERA_FOLLOW_MIN_INTERVAL_MS = 1_000 / 60;
+const CAMERA_FOLLOW_SNAP_COOLDOWN_MS = 280;
+const CAMERA_FOLLOW_EASE_DURATION_MS = 180;
+const CAMERA_FOLLOW_MIN_CORRECTION_PX = 12;
+const CAMERA_FOLLOW_SCREEN_DEADZONE_X = 0.38;
+const CAMERA_FOLLOW_SCREEN_DEADZONE_Y = 0.28;
 const MANUAL_CAMERA_INTERACTION_COOLDOWN_MS = 900;
 const FPS_DROP_THRESHOLD = 50;
 const FPS_RECOVERY_THRESHOLD = 57;
 const FPS_SAMPLE_WINDOW = 20;
 const FPS_SUSTAINED_DROP_FRAMES = 8;
+const WATCHED_PRESENTATION_FRAME_SPIKE_THRESHOLD_MS = 22;
+const WATCHED_JUMP_TO_SPIKE_THRESHOLD_MS = 3;
 
 type PresentationRuntimeProps = {
     origin: Coords;
+};
+
+const readStaticCameraMode = () =>
+    typeof window !== 'undefined' && new URL(window.location.href).searchParams.has('staticCamera');
+
+const buildMotionDiagnosticPayload = ({ summary, type }: MotionDiagnosticEvent) => ({
+    avgCameraCenterVelocityMps: summary.avgCameraCenterVelocityMps,
+    avgCameraCommitVelocityMps: summary.avgCameraCommitVelocityMps,
+    avgFrameDeltaMs: summary.avgFrameDeltaMs,
+    avgJumpToDurationMs: summary.avgJumpToDurationMs,
+    avgLocalVelocityMps: summary.avgLocalVelocityMps,
+    avgScreenOffsetPx: summary.avgScreenOffsetPx,
+    avgScreenVelocityPxPerSecond: summary.avgScreenVelocityPxPerSecond,
+    avgWorldVelocityMps: summary.avgWorldVelocityMps,
+    cameraCenterVelocityCv: summary.cameraCenterVelocityCv,
+    cameraCommitCount: summary.cameraCommitCount,
+    cameraCommitVelocityCv: summary.cameraCommitVelocityCv,
+    frameCount: summary.frameCount,
+    likelySource: summary.likelySource,
+    localVelocityCv: summary.localVelocityCv,
+    longFrameCount: summary.longFrameCount,
+    maxJumpToDurationMs: summary.maxJumpToDurationMs,
+    p95FrameDeltaMs: summary.p95FrameDeltaMs,
+    screenOffsetCv: summary.screenOffsetCv,
+    screenVelocityCv: summary.screenVelocityCv,
+    sequenceRepeatCount: summary.sequenceRepeatCount,
+    severity: summary.severity,
+    type,
+    worldVelocityCv: summary.worldVelocityCv,
+});
+
+const reportMotionDiagnosticEvents = (events: MotionDiagnosticEvent[]) => {
+    for (const event of events) {
+        atharDebugLog('motion', event.type, buildMotionDiagnosticPayload(event));
+    }
 };
 
 const pushFpsSample = (samples: number[], fps: number) => {
@@ -105,7 +152,7 @@ const reportFrameSpikes = ({
         );
     }
 
-    if (activeSpikeWatch && rawDeltaMs > 16.7) {
+    if (activeSpikeWatch && rawDeltaMs > WATCHED_PRESENTATION_FRAME_SPIKE_THRESHOLD_MS) {
         atharDebugLog(
             'camera',
             'WATCHED_PRESENTATION_FRAME_SPIKE',
@@ -116,7 +163,7 @@ const reportFrameSpikes = ({
                 watchLabel: activeSpikeWatch.label,
                 watchOffsetMs: performance.now() - activeSpikeWatch.startedAtMs,
             },
-            { throttleKey: `watched-presentation-frame-spike:${activeSpikeWatch.label}`, throttleMs: 120 },
+            { throttleKey: `watched-presentation-frame-spike:${activeSpikeWatch.label}`, throttleMs: 250 },
         );
     }
 };
@@ -129,6 +176,12 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
     const fpsDropActiveRef = useRef(false);
     const fpsDropFrameCountRef = useRef(0);
     const lastEmittedSpeedRef = useRef(-1);
+    const lastMapCenterRef = useRef<Coords | null>(null);
+    const lastPlayerLocalPositionRef = useRef<{ x: number; z: number } | null>(null);
+    const lastPlayerScreenPositionRef = useRef<{ x: number; y: number } | null>(null);
+    const lastPlayerWorldPositionRef = useRef<Vector3 | null>(null);
+    const playerWorldPositionRef = useRef(new Vector3());
+    const staticCameraModeRef = useRef(readStaticCameraMode());
 
     useEffect(() => {
         return () => {
@@ -142,11 +195,21 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
         playerState.targetPosition = null;
         sceneRegistry.markDirty(PLAYER_ENTITY_ID);
         lastRenderedSequenceRef.current = -1;
+        lastMapCenterRef.current = null;
+        lastPlayerLocalPositionRef.current = null;
+        lastPlayerScreenPositionRef.current = null;
+        lastPlayerWorldPositionRef.current = null;
+        resetMotionDiagnostics();
     }, [origin.lat, origin.lng]);
+
+    useEffect(() => {
+        if (staticCameraModeRef.current) {
+            atharDebugLog('motion', 'STATIC_CAMERA_ENABLED');
+        }
+    }, []);
 
     useFrame((_, rawDelta) => {
         const nowMs = performance.now();
-        const delta = Math.min(rawDelta, 0.034);
         const rawDeltaMs = rawDelta * 1_000;
         const fps = rawDelta > 0 ? 1 / rawDelta : 0;
         const averageFps = pushFpsSample(fpsSamplesRef.current, fps);
@@ -181,10 +244,7 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
         let finalZ = 0;
 
         if (playerRef) {
-            [finalX, finalY, finalZ] = coordsToVector3(
-                { latitude: presented.coords.lat, longitude: presented.coords.lng },
-                { latitude: origin.lat, longitude: origin.lng },
-            );
+            [finalX, finalY, finalZ] = positionMetersToPlayerLocalPosition(presented.positionMeters);
 
             playerRef.position.set(finalX, finalY, finalZ);
             playerRef.rotation.y = Math.PI - presented.bearing;
@@ -200,54 +260,93 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
             return;
         }
 
+        const mapCenter = map.getCenter();
+        const currentCenter = { lat: mapCenter.lat, lng: mapCenter.lng };
+        const viewportWidth = map.getContainer().clientWidth;
+        const viewportHeight = map.getContainer().clientHeight;
+        const projectedPlayer = map.project([presented.coords.lng, presented.coords.lat]);
         let _jumpToDurationMs = -1;
+        let cameraCommitStepMeters = 0;
+        let recordedCenter = currentCenter;
 
-        const autoFollowEnabled = shouldAutoFollowCamera({
-            cooldownMs: MANUAL_CAMERA_INTERACTION_COOLDOWN_MS,
-            lastManualInteractionAt: getLastManualMapInteractionAt(),
-            now: nowMs,
-        });
-
-        if (autoFollowEnabled) {
-            const mapCenter = map.getCenter();
-            const currentCenter = { lat: mapCenter.lat, lng: mapCenter.lng };
-
-            const follow = resolveCameraFollow({
-                currentCenter,
-                damping: CAMERA_FOLLOW_DAMPING,
-                deadzoneMeters: CAMERA_FOLLOW_DEADZONE_METERS,
-                delta,
-                maxSpeedMetersPerSecond: CAMERA_FOLLOW_MAX_SPEED_MPS,
-                targetCoords: presented.coords,
+        const autoFollowEnabled =
+            !staticCameraModeRef.current &&
+            shouldAutoFollowCamera({
+                cooldownMs: MANUAL_CAMERA_INTERACTION_COOLDOWN_MS,
+                lastManualInteractionAt: getLastManualMapInteractionAt(),
+                now: nowMs,
             });
+        const followCorrection = resolveScreenSpaceFollowCorrection({
+            deadzoneXFraction: CAMERA_FOLLOW_SCREEN_DEADZONE_X,
+            deadzoneYFraction: CAMERA_FOLLOW_SCREEN_DEADZONE_Y,
+            minimumCorrectionPx: CAMERA_FOLLOW_MIN_CORRECTION_PX,
+            point: projectedPlayer,
+            viewportHeight,
+            viewportWidth,
+        });
+        const manualCameraOverrideActive = isManualCameraOverrideActive();
 
-            if (follow.moved) {
-                recordCameraFollow({
-                    appliedStepMeters: follow.appliedStepMeters,
-                    distanceFromTargetMeters: follow.distanceFromCamera,
-                });
+        if (manualCameraOverrideActive && !followCorrection.moved) {
+            clearManualCameraOverride();
+        }
 
-                if (nowMs - lastCameraCommitAtRef.current >= CAMERA_FOLLOW_MIN_INTERVAL_MS) {
+        if (autoFollowEnabled && !manualCameraOverrideActive) {
+            const distanceFromTargetMeters = worldDistanceInMeters(currentCenter, presented.coords);
+            const shouldSnapCamera = distanceFromTargetMeters > 0 && followCorrection.moved;
+
+            if (shouldSnapCamera) {
+                if (nowMs - lastCameraCommitAtRef.current >= CAMERA_FOLLOW_SNAP_COOLDOWN_MS) {
                     const jumpToStartedAt = performance.now();
                     lastCameraCommitAtRef.current = nowMs;
-                    map.jumpTo({
-                        center: [follow.nextCenter.lng, follow.nextCenter.lat],
+                    const nextCenter = map.unproject([
+                        viewportWidth / 2 + followCorrection.cameraDeltaPx.x,
+                        viewportHeight / 2 + followCorrection.cameraDeltaPx.y,
+                    ]);
+
+                    recordedCenter = {
+                        lat: nextCenter.lat,
+                        lng: nextCenter.lng,
+                    };
+                    cameraCommitStepMeters = worldDistanceInMeters(recordedCenter, currentCenter);
+                    recordCameraFollow({
+                        appliedStepMeters: cameraCommitStepMeters,
+                        distanceFromTargetMeters,
+                    });
+                    map.easeTo({
+                        center: [recordedCenter.lng, recordedCenter.lat],
+                        duration: CAMERA_FOLLOW_EASE_DURATION_MS,
+                        easing: (time) => 1 - (1 - time) ** 3,
                     });
                     _jumpToDurationMs = performance.now() - jumpToStartedAt;
+                    atharDebugLog(
+                        'camera',
+                        'CAMERA_EDGE_RECENTER',
+                        {
+                            averageFps,
+                            cameraCommitStepMeters,
+                            correctionXpx: followCorrection.cameraDeltaPx.x,
+                            correctionYpx: followCorrection.cameraDeltaPx.y,
+                            distanceFromTargetMeters,
+                            jumpToDurationMs: _jumpToDurationMs,
+                            screenCorrectionPx: followCorrection.correctionMagnitudePx,
+                            transitionDurationMs: CAMERA_FOLLOW_EASE_DURATION_MS,
+                        },
+                        { throttleMs: 120 },
+                    );
                     if (_jumpToDurationMs > 4) {
                         atharDebugLog(
                             'camera',
                             'JUMP_TO_SPIKE',
                             {
                                 averageFps,
-                                distanceFromTargetMeters: follow.distanceFromCamera,
+                                distanceFromTargetMeters,
                                 jumpToDurationMs: _jumpToDurationMs,
                             },
                             { throttleMs: 250 },
                         );
                     }
 
-                    if (activeSpikeWatch && _jumpToDurationMs > 1.5) {
+                    if (activeSpikeWatch && _jumpToDurationMs > WATCHED_JUMP_TO_SPIKE_THRESHOLD_MS) {
                         atharDebugLog(
                             'camera',
                             'WATCHED_JUMP_TO_SPIKE',
@@ -257,14 +356,70 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
                                 watchLabel: activeSpikeWatch.label,
                                 watchOffsetMs: performance.now() - activeSpikeWatch.startedAtMs,
                             },
-                            { throttleKey: `watched-jump-to-spike:${activeSpikeWatch.label}`, throttleMs: 120 },
+                            { throttleKey: `watched-jump-to-spike:${activeSpikeWatch.label}`, throttleMs: 250 },
                         );
                     }
                 }
             }
-        } else {
+        } else if (!staticCameraModeRef.current) {
             recordCameraFollowCooldownSkip();
         }
+
+        if (!isAtharDebugEnabled() || !playerRef) {
+            return;
+        }
+
+        const lastLocalPosition = lastPlayerLocalPositionRef.current;
+        const localStepMeters = lastLocalPosition
+            ? Math.hypot(finalX - lastLocalPosition.x, finalZ - lastLocalPosition.z)
+            : 0;
+        lastPlayerLocalPositionRef.current = { x: finalX, z: finalZ };
+
+        playerRef.updateWorldMatrix(true, false);
+        playerRef.getWorldPosition(playerWorldPositionRef.current);
+
+        const worldStepMeters = lastPlayerWorldPositionRef.current
+            ? playerWorldPositionRef.current.distanceTo(lastPlayerWorldPositionRef.current)
+            : 0;
+
+        if (!lastPlayerWorldPositionRef.current) {
+            lastPlayerWorldPositionRef.current = new Vector3();
+        }
+        lastPlayerWorldPositionRef.current.copy(playerWorldPositionRef.current);
+
+        const cameraCenterStepMeters = lastMapCenterRef.current
+            ? worldDistanceInMeters(recordedCenter, lastMapCenterRef.current)
+            : 0;
+        lastMapCenterRef.current = recordedCenter;
+
+        const screenCenter = {
+            x: viewportWidth / 2,
+            y: viewportHeight / 2,
+        };
+        const screenOffsetPx = Math.hypot(projectedPlayer.x - screenCenter.x, projectedPlayer.y - screenCenter.y);
+        const screenStepPx = lastPlayerScreenPositionRef.current
+            ? Math.hypot(
+                  projectedPlayer.x - lastPlayerScreenPositionRef.current.x,
+                  projectedPlayer.y - lastPlayerScreenPositionRef.current.y,
+              )
+            : 0;
+        lastPlayerScreenPositionRef.current = { x: projectedPlayer.x, y: projectedPlayer.y };
+
+        reportMotionDiagnosticEvents(
+            recordMotionDiagnosticFrame({
+                cameraCenterStepMeters,
+                cameraCommitStepMeters,
+                frameDeltaMs: rawDeltaMs,
+                jumpToDurationMs: _jumpToDurationMs,
+                localStepMeters,
+                screenOffsetPx,
+                screenStepPx,
+                sequence: drainResult.sequence,
+                speed: presented.speed,
+                timestampMs: nowMs,
+                worldStepMeters,
+            }),
+        );
     });
 
     return null;
