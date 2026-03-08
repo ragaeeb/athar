@@ -18,10 +18,7 @@ type GLTFMaterialDefinition = {
     extensions?: Record<string, unknown>;
 };
 
-type GLTFParserLike = Pick<
-    GLTFParser,
-    'assignTexture' | 'json'
->;
+type GLTFParserLike = Pick<GLTFParser, 'assignTexture' | 'json'>;
 
 type GLTFLoaderLike = Pick<GLTFLoader, 'register'> & {
     [LOADER_PATCH_FLAG]?: boolean;
