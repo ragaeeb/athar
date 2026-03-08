@@ -74,6 +74,7 @@ export type SimulationAdvanceInput = {
 };
 
 export type SimulationAdvanceResult = {
+    accumulatorMs: number;
     didStep: boolean;
     events: SimulationEvent[];
     state: SimulationState;

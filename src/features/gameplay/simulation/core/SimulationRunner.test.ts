@@ -5,6 +5,7 @@ import { level1 } from '@/content/levels/level-1/config';
 import {
     createSimulationRunner,
     DEFAULT_FIXED_TIMESTEP_MS,
+    DEFAULT_MAX_CATCH_UP_STEPS,
     stepSimulation,
 } from '@/features/gameplay/simulation/core/SimulationRunner';
 import type { SimulationState } from '@/features/gameplay/simulation/core/SimulationTypes';
@@ -86,6 +87,7 @@ describe('SimulationRunner', () => {
         });
 
         expect(result.didStep).toBe(true);
+        expect(result.accumulatorMs).toBeCloseTo(DEFAULT_FIXED_TIMESTEP_MS * 0.5, 5);
         expect(result.state.nowMs).toBeCloseTo(initialState.nowMs + DEFAULT_FIXED_TIMESTEP_MS * 2, 5);
         expect(result.state.player.positionMeters.x).toBeGreaterThan(0);
         expect(result.state.player.positionMeters.z).toBeCloseTo(0, 5);
@@ -100,7 +102,65 @@ describe('SimulationRunner', () => {
         });
 
         expect(flushedRemainder.didStep).toBe(true);
+        expect(flushedRemainder.accumulatorMs).toBeCloseTo(0, 5);
         expect(flushedRemainder.state.nowMs).toBeCloseTo(initialState.nowMs + DEFAULT_FIXED_TIMESTEP_MS * 3, 5);
         expect(flushedRemainder.state.player.positionMeters.x).toBeGreaterThan(result.state.player.positionMeters.x);
+    });
+
+    it('variable-timestep: steps once per advance with raw frameDelta', () => {
+        const runner = createSimulationRunner({ variableTimestep: true });
+        const initialState = createSimulationState({ tokens: [] });
+
+        const result = runner.advance({
+            frameDeltaMs: 16.5,
+            input: { moveX: 1, moveZ: 0 },
+            state: initialState,
+        });
+
+        expect(result.didStep).toBe(true);
+        expect(result.accumulatorMs).toBe(0);
+        expect(result.state.nowMs).toBeCloseTo(initialState.nowMs + 16.5, 5);
+        expect(result.state.player.positionMeters.x).toBeGreaterThan(0);
+
+        const secondResult = runner.advance({
+            frameDeltaMs: 14.2,
+            input: { moveX: 1, moveZ: 0 },
+            state: result.state,
+        });
+
+        expect(secondResult.didStep).toBe(true);
+        expect(secondResult.accumulatorMs).toBe(0);
+        expect(secondResult.state.nowMs).toBeCloseTo(initialState.nowMs + 16.5 + 14.2, 5);
+        expect(secondResult.state.player.positionMeters.x).toBeGreaterThan(result.state.player.positionMeters.x);
+    });
+
+    it('variable-timestep: clamps large frame deltas', () => {
+        const runner = createSimulationRunner({ variableTimestep: true });
+        const initialState = createSimulationState({ tokens: [] });
+
+        const result = runner.advance({
+            frameDeltaMs: 500,
+            input: { moveX: 1, moveZ: 0 },
+            state: initialState,
+        });
+
+        expect(result.didStep).toBe(true);
+        expect(result.state.nowMs).toBeCloseTo(
+            initialState.nowMs + DEFAULT_FIXED_TIMESTEP_MS * DEFAULT_MAX_CATCH_UP_STEPS,
+            5,
+        );
+    });
+
+    it('variable-timestep: returns didStep false for zero/negative delta', () => {
+        const runner = createSimulationRunner({ variableTimestep: true });
+        const initialState = createSimulationState({ tokens: [] });
+
+        const result = runner.advance({
+            frameDeltaMs: 0,
+            input: { moveX: 1, moveZ: 0 },
+            state: initialState,
+        });
+
+        expect(result.didStep).toBe(false);
     });
 });

@@ -7,8 +7,8 @@ import { atharDebugLog } from '@/features/debug/debug';
 import { recordFrameDeltaMs, recordPlayerMovementTick } from '@/features/debug/perf-metrics';
 import { getActiveSpikeWatch } from '@/features/debug/spike-watch';
 import { getMovementInputSnapshot } from '@/features/gameplay/controllers/input-state';
-import { rendererBridge } from '@/features/gameplay/presentation/PresentationRuntime';
-import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
+import { sceneRegistry } from '@/features/gameplay/presentation/SceneRegistry';
+import { commitSimulationSample, getAuthoritativePlayerSample } from '@/features/gameplay/runtime/simulation-bridge';
 import { createSimulationRunner, type SimulationRunner } from '@/features/gameplay/simulation/core/SimulationRunner';
 import type {
     SimulationEvent,
@@ -20,22 +20,24 @@ import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
 
+const PLAYER_ENTITY_ID = 'player';
+
 const readSimulationPlayerState = (): SimulationPlayerState => {
     const playerState = usePlayerStore.getState();
-    const playerRuntimeState = getPlayerRuntimeState();
+    const authoritativeMotion = getAuthoritativePlayerSample();
 
     return {
         activeTeacher: playerState.activeTeacher,
-        bearing: playerRuntimeState.bearing,
-        coords: playerRuntimeState.coords,
+        bearing: authoritativeMotion?.bearing ?? 0,
+        coords: authoritativeMotion?.coords ?? { lat: 0, lng: 0 },
         dialogueOpen: playerState.dialogueOpen,
         hadithTokens: playerState.hadithTokens,
         hitTokens: playerState.hitTokens,
         isHit: playerState.isHit,
         lastHitAt: playerState.lastHitAt,
-        positionMeters: playerRuntimeState.positionMeters,
+        positionMeters: authoritativeMotion?.positionMeters ?? { x: 0, z: 0 },
         scrambleUntil: playerState.scrambleUntil,
-        speed: playerRuntimeState.speed,
+        speed: authoritativeMotion?.speed ?? 0,
         tokensLost: playerState.tokensLost,
     };
 };
@@ -97,18 +99,23 @@ const applySimulationEvents = (events: SimulationEvent[]) => {
 
 export const GameLoop = () => {
     const levelId = useLevelStore((state) => state.config?.id);
-    const runnerRef = useRef<SimulationRunner>(createSimulationRunner());
+    const runnerRef = useRef<SimulationRunner>(createSimulationRunner({ variableTimestep: true }));
+    const lastFrameAtMsRef = useRef(performance.now());
 
     useEffect(() => {
         runnerRef.current.reset(Date.now());
+        lastFrameAtMsRef.current = performance.now();
     }, [levelId]);
 
-    useFrame((_, rawDelta) => {
+    useFrame(() => {
         if (!levelId) {
             return;
         }
 
-        const frameDeltaMs = Math.min(rawDelta, 0.1) * 1_000;
+        const nowMs = performance.now();
+        const frameDeltaMs = Math.min(Math.max(nowMs - lastFrameAtMsRef.current, 0), 100);
+        lastFrameAtMsRef.current = nowMs;
+
         recordFrameDeltaMs(frameDeltaMs);
         if (frameDeltaMs > 20) {
             atharDebugLog('route', 'GAME_LOOP_SPIKE', { frameDeltaMs });
@@ -122,7 +129,7 @@ export const GameLoop = () => {
                 {
                     frameDeltaMs,
                     watchLabel: activeSpikeWatch.label,
-                    watchOffsetMs: performance.now() - activeSpikeWatch.startedAtMs,
+                    watchOffsetMs: nowMs - activeSpikeWatch.startedAtMs,
                 },
                 { throttleKey: `watched-game-loop-spike:${activeSpikeWatch.label}`, throttleMs: 120 },
             );
@@ -143,7 +150,13 @@ export const GameLoop = () => {
             return;
         }
 
-        rendererBridge.consume(result);
+        commitSimulationSample({
+            bearing: result.state.player.bearing,
+            coords: result.state.player.coords,
+            positionMeters: result.state.player.positionMeters,
+            speed: result.state.player.speed,
+        });
+        sceneRegistry.markDirty(PLAYER_ENTITY_ID);
         usePlayerStore.getState().syncFromSimulation(result.state.player);
         useLevelStore.getState().syncFromSimulation(result.state.levelState);
         applySimulationEvents(result.events);
