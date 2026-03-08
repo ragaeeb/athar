@@ -31,8 +31,85 @@ export type CameraFollowPermissionInput = {
     now: number;
 };
 
+export type CameraSnapFollowInput = {
+    currentCenter: Coords;
+    deadzoneMeters: number;
+    targetCoords: Coords;
+};
+
+export type ScreenSpaceFollowCorrectionInput = {
+    minimumCorrectionPx?: number;
+    point: { x: number; y: number };
+    viewportHeight: number;
+    viewportWidth: number;
+    deadzoneXFraction: number;
+    deadzoneYFraction: number;
+};
+
+export type ScreenSpaceFollowCorrectionResult = {
+    cameraDeltaPx: { x: number; y: number };
+    correctionMagnitudePx: number;
+    moved: boolean;
+    targetPoint: { x: number; y: number };
+};
+
 export const shouldAutoFollowCamera = ({ cooldownMs, lastManualInteractionAt, now }: CameraFollowPermissionInput) =>
     now - lastManualInteractionAt >= cooldownMs;
+
+export const resolveScreenSpaceFollowCorrection = ({
+    point,
+    minimumCorrectionPx = 0,
+    viewportHeight,
+    viewportWidth,
+    deadzoneXFraction,
+    deadzoneYFraction,
+}: ScreenSpaceFollowCorrectionInput): ScreenSpaceFollowCorrectionResult => {
+    const centerX = viewportWidth / 2;
+    const centerY = viewportHeight / 2;
+    const maxOffsetX = viewportWidth * deadzoneXFraction;
+    const maxOffsetY = viewportHeight * deadzoneYFraction;
+    const targetPoint = {
+        x: Math.min(centerX + maxOffsetX, Math.max(centerX - maxOffsetX, point.x)),
+        y: Math.min(centerY + maxOffsetY, Math.max(centerY - maxOffsetY, point.y)),
+    };
+    const cameraDeltaPx = {
+        x: point.x - targetPoint.x,
+        y: point.y - targetPoint.y,
+    };
+    const correctionMagnitudePx = Math.hypot(cameraDeltaPx.x, cameraDeltaPx.y);
+    const moved = correctionMagnitudePx > 0 && correctionMagnitudePx >= minimumCorrectionPx;
+
+    return {
+        cameraDeltaPx: moved ? cameraDeltaPx : { x: 0, y: 0 },
+        correctionMagnitudePx,
+        moved,
+        targetPoint: moved ? targetPoint : point,
+    };
+};
+
+export const resolveCameraSnapFollow = ({
+    currentCenter,
+    deadzoneMeters,
+    targetCoords,
+}: CameraSnapFollowInput): CameraFollowResult => {
+    const distanceFromCamera = worldDistanceInMeters(targetCoords, currentCenter);
+
+    if (distanceFromCamera === 0 || distanceFromCamera <= deadzoneMeters) {
+        return {
+            appliedStepMeters: 0,
+            distanceFromCamera,
+            moved: false,
+            nextCenter: currentCenter,
+        };
+    }
+
+    return {
+        appliedStepMeters: distanceFromCamera,
+        distanceFromCamera,
+        moved: true,
+        nextCenter: targetCoords,
+    };
+};
 
 export const resolveCameraFollow = ({
     currentCenter,

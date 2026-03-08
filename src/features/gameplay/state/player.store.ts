@@ -10,7 +10,9 @@ import {
     setPlayerRuntimeMotion,
     updatePlayerRuntimeMovement,
 } from '@/features/gameplay/runtime/player-runtime';
+import { initializeSimulationBridge, resetSimulationBridge } from '@/features/gameplay/runtime/simulation-bridge';
 import type { SimulationPlayerState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { metersOffsetFromCoords } from '@/shared/geo';
 
 export type PlayerState = {
     hadithTokens: number;
@@ -85,6 +87,12 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     closeDialogue: () => set({ activeTeacher: null, dialogueOpen: false }),
     initializePlayer: (coords, origin) => {
         initializePlayerRuntimeState(coords, origin);
+        initializeSimulationBridge({
+            bearing: 0,
+            coords,
+            positionMeters: metersOffsetFromCoords(coords, origin),
+            speed: 0,
+        });
         set({
             ...initialPlayerState,
             startedAt: Date.now(),
@@ -162,6 +170,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 
 export const resetPlayerStore = () => {
     resetPlayerRuntimeState();
+    resetSimulationBridge();
     usePlayerStore.setState({
         ...initialPlayerState,
         startedAt: Date.now(),

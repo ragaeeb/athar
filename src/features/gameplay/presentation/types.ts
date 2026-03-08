@@ -1,6 +1,5 @@
 import type { Group } from 'three';
 import type { Coords } from '@/content/levels/types';
-import type { SimulationStepResult } from '@/features/gameplay/simulation/core/SimulationTypes';
 
 export type SceneEntityId = string;
 
@@ -17,8 +16,4 @@ export type SceneRegistry = {
     markDirty: (id: SceneEntityId) => void;
     registerEntity: (id: SceneEntityId, ref: Group) => void;
     unregisterEntity: (id: SceneEntityId, ref?: Group | null) => void;
-};
-
-export type RendererBridge = {
-    consume: (result: SimulationStepResult) => void;
 };

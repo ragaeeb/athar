@@ -10,7 +10,7 @@ let activeSpikeWatch: ActiveSpikeWatch | null = null;
 
 const getNowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-export const beginSpikeWatch = (label: string, durationMs = 2_500) => {
+export const beginSpikeWatch = (label: string, durationMs = 1_200) => {
     const startedAtMs = getNowMs();
     activeSpikeWatch = {
         endsAtMs: startedAtMs + durationMs,

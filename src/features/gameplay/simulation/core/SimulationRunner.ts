@@ -18,6 +18,7 @@ type SimulationRunnerOptions = {
     fixedTimestepMs?: number;
     maxCatchUpSteps?: number;
     maxFrameDeltaMs?: number;
+    variableTimestep?: boolean;
 };
 
 export type SimulationRunner = {
@@ -79,44 +80,66 @@ export const createSimulationRunner = ({
     fixedTimestepMs = DEFAULT_FIXED_TIMESTEP_MS,
     maxCatchUpSteps = DEFAULT_MAX_CATCH_UP_STEPS,
     maxFrameDeltaMs = DEFAULT_MAX_FRAME_DELTA_MS,
+    variableTimestep = false,
 }: SimulationRunnerOptions = {}): SimulationRunner => {
     let accumulatorMs = 0;
     let simulatedNowMs: number | null = null;
 
-    return {
-        advance: ({ frameDeltaMs, input, state }) => {
-            accumulatorMs += clampFrameDeltaMs(frameDeltaMs, maxFrameDeltaMs);
+    const advanceVariable = ({ frameDeltaMs, input, state }: SimulationAdvanceInput): SimulationAdvanceResult => {
+        const clampedDelta = clampFrameDeltaMs(frameDeltaMs, maxFrameDeltaMs);
+        if (clampedDelta <= 0) {
+            return { accumulatorMs: 0, didStep: false, events: [], state };
+        }
 
-            let nextState = simulatedNowMs === null ? state : { ...state, nowMs: simulatedNowMs };
-            const events: SimulationEvent[] = [];
-            let didStep = false;
-            let steps = 0;
+        const nextState = simulatedNowMs === null ? state : { ...state, nowMs: simulatedNowMs };
+        const result = stepSimulation({ deltaMs: clampedDelta, input, state: nextState });
+        simulatedNowMs = result.state.nowMs;
 
-            while (accumulatorMs >= fixedTimestepMs && steps < maxCatchUpSteps) {
-                const result = stepSimulation({
-                    deltaMs: fixedTimestepMs,
-                    input,
-                    state: nextState,
-                });
+        return {
+            accumulatorMs: 0,
+            didStep: true,
+            events: result.events,
+            state: result.state,
+        };
+    };
 
-                nextState = result.state;
-                simulatedNowMs = nextState.nowMs;
-                accumulatorMs -= fixedTimestepMs;
-                steps += 1;
-                didStep = true;
-                events.push(...result.events);
-            }
+    const advanceFixed = ({ frameDeltaMs, input, state }: SimulationAdvanceInput): SimulationAdvanceResult => {
+        accumulatorMs += clampFrameDeltaMs(frameDeltaMs, maxFrameDeltaMs);
 
-            if (steps === maxCatchUpSteps && accumulatorMs >= fixedTimestepMs) {
-                accumulatorMs = Math.min(accumulatorMs, fixedTimestepMs);
-            }
+        let nextState = simulatedNowMs === null ? state : { ...state, nowMs: simulatedNowMs };
+        const events: SimulationEvent[] = [];
+        let didStep = false;
+        let steps = 0;
 
-            return {
-                didStep,
-                events,
+        while (accumulatorMs >= fixedTimestepMs && steps < maxCatchUpSteps) {
+            const result = stepSimulation({
+                deltaMs: fixedTimestepMs,
+                input,
                 state: nextState,
-            };
-        },
+            });
+
+            nextState = result.state;
+            simulatedNowMs = nextState.nowMs;
+            accumulatorMs -= fixedTimestepMs;
+            steps += 1;
+            didStep = true;
+            events.push(...result.events);
+        }
+
+        if (steps === maxCatchUpSteps && accumulatorMs >= fixedTimestepMs) {
+            accumulatorMs = Math.min(accumulatorMs, fixedTimestepMs);
+        }
+
+        return {
+            accumulatorMs,
+            didStep,
+            events,
+            state: nextState,
+        };
+    };
+
+    return {
+        advance: variableTimestep ? advanceVariable : advanceFixed,
         reset: (nowMs = Date.now()) => {
             accumulatorMs = 0;
             simulatedNowMs = nowMs;
