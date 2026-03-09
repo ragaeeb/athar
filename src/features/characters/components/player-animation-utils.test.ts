@@ -87,6 +87,16 @@ describe('player-animation-utils', () => {
         ).toBe('Walk Forward');
     });
 
+    it('returns no active animation when a single locomotion clip is reused as the fallback idle', () => {
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Take 001',
+                locomotionAnimation: 'Take 001',
+                speed: 0,
+            }),
+        ).toBeNull();
+    });
+
     it('switches animation actions imperatively only when the target animation changes', () => {
         const idleAction = {
             fadeIn: vi.fn().mockReturnThis(),

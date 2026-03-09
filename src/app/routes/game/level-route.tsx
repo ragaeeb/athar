@@ -8,6 +8,7 @@ import { audioManager } from '@/features/audio/audio-manager';
 import { useAtharDevTools } from '@/features/debug/dev-tools';
 import { clearInputState } from '@/features/gameplay/controllers/input-state';
 import { PlayerController } from '@/features/gameplay/controllers/PlayerController';
+import { TouchControls } from '@/features/gameplay/controllers/TouchControls';
 import { PresentationRuntime } from '@/features/gameplay/presentation/PresentationRuntime';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
@@ -16,6 +17,7 @@ import { resetGameplaySessionStore, useGameplaySessionStore } from '@/features/g
 import { GameLoop } from '@/features/gameplay/systems/GameLoop';
 import { GameplayPauseOverlay } from '@/features/hud/components/GameplayPauseOverlay';
 import { HUD } from '@/features/hud/components/HUD';
+import { TraversalOnboarding } from '@/features/hud/components/TraversalOnboarding';
 import { LevelMap } from '@/features/map/components/LevelMap';
 import { MapRuntimeBoundary } from '@/features/map/components/MapRuntimeBoundary';
 import { MapScene } from '@/features/map/components/MapScene';
@@ -136,8 +138,10 @@ export const GameLevelRoute = () => {
     const [sessionResetKey, setSessionResetKey] = useState(0);
     const [runtimeIssue, setRuntimeIssue] = useState<MapRuntimeIssue | null>(null);
     const unlockedLevels = useGameStore((state) => state.unlockedLevels);
+    const onboardingDismissed = useGameplaySessionStore((state) => state.onboardingDismissed);
     const paused = useGameplaySessionStore((state) => state.paused);
     const isComplete = useLevelStore((state) => state.isComplete);
+    const dialogueOpen = usePlayerStore((state) => state.dialogueOpen);
     const hasAccess = unlockedLevels.includes(level.order);
     const handleRetry = () => {
         setRuntimeIssue(null);
@@ -212,6 +216,7 @@ export const GameLevelRoute = () => {
             </MapRuntimeBoundary>
 
             <HUD level={level} />
+            <TouchControls />
 
             <div className="pointer-events-none absolute top-4 left-4 z-20 flex gap-3 lg:top-6 lg:left-6">
                 <Link
@@ -238,6 +243,10 @@ export const GameLevelRoute = () => {
 
             {paused && !runtimeIssue?.blocking && !isComplete ? (
                 <GameplayPauseOverlay onRestart={handleRestartChapter} onResume={handlePauseToggle} />
+            ) : null}
+
+            {!onboardingDismissed && !paused && !runtimeIssue && !isComplete && !dialogueOpen ? (
+                <TraversalOnboarding />
             ) : null}
 
             {runtimeIssue?.blocking ? (

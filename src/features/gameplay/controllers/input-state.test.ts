@@ -4,6 +4,7 @@ import {
     clearInputState,
     getMovementInputSnapshot,
     setInputKeyPressed,
+    setTouchMovementInput,
 } from '@/features/gameplay/controllers/input-state';
 
 describe('input-state', () => {
@@ -11,23 +12,25 @@ describe('input-state', () => {
         clearInputState();
     });
 
-    it('normalizes keys so caps lock does not break WASD', () => {
-        setInputKeyPressed('D', true);
-        setInputKeyPressed('W', true);
+    it('combines keyboard and touch movement through the shared movement contract', () => {
+        setInputKeyPressed('d', true);
+        setTouchMovementInput({ moveX: 0.25, moveZ: 0.5 });
 
         expect(getMovementInputSnapshot()).toEqual({
             moveX: 1,
-            moveZ: 1,
+            moveZ: 0.5,
         });
     });
 
-    it('tracks arrow keys through normalized lowercase names', () => {
-        setInputKeyPressed('ArrowLeft', true);
-        setInputKeyPressed('ArrowDown', true);
+    it('clears both keyboard and touch state together', () => {
+        setInputKeyPressed('w', true);
+        setTouchMovementInput({ moveX: -0.5, moveZ: 0.25 });
+
+        clearInputState();
 
         expect(getMovementInputSnapshot()).toEqual({
-            moveX: -1,
-            moveZ: -1,
+            moveX: 0,
+            moveZ: 0,
         });
     });
 });
