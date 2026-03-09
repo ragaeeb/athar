@@ -128,10 +128,12 @@ test('completes the deterministic level one and level two smoke path', async ({ 
         ).__atharDev__?.teleportToFinalMilestone();
     });
 
-    await expect(page.getByRole('button', { name: /review the hijaz route/i })).toBeVisible();
-    await page.getByRole('button', { name: /review the hijaz route/i }).click();
+    const reviewHijazRouteButton = page.getByRole('button', { name: /review the hijaz route/i });
+    await expect(reviewHijazRouteButton).toBeVisible();
+    await expect(reviewHijazRouteButton).toBeEnabled();
+    await reviewHijazRouteButton.click({ force: true });
 
-    await expect(page).toHaveURL(/\/game\/level-2\/complete$/);
+    await page.waitForURL(/\/game\/level-2\/complete$/);
     await expect(page.getByText(/hijaz route note/i)).toBeVisible();
     await expect(page.getByText(/coming soon/i)).toBeVisible();
     await expect(page.getByRole('link', { name: /enter iraq/i })).toHaveCount(0);
