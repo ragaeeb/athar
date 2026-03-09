@@ -3,7 +3,6 @@ import { useEffect, useId, useRef } from 'react';
 import { audioManager } from '@/features/audio/audio-manager';
 import { atharDebugLog } from '@/features/debug/debug';
 import { beginSpikeWatch } from '@/features/debug/spike-watch';
-import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import { Button } from '@/shared/ui/Button';
@@ -93,7 +92,6 @@ export const DialogueBox = () => {
             const bankedTokens = usePlayerStore.getState().bankTokens();
             useLevelStore.getState().addLockedHadith(bankedTokens);
             useLevelStore.getState().completeTeacher(teacher.id);
-            useGameStore.getState().addVerifiedHadith(bankedTokens);
             usePlayerStore.getState().closeDialogue();
             audioManager.play('receive-hadith');
         });
@@ -124,7 +122,7 @@ export const DialogueBox = () => {
                     <p className="mt-4 text-sm text-sand-100/70">{teacher.hadithSource}</p>
                 </Card>
                 <p className="mt-4 text-sm text-sand-100/75">
-                    Receive hadith now to preserve {currentTokens} carried tokens into your verified tally.
+                    Receive hadith now to preserve {currentTokens} carried tokens into this chapter's tally.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                     <Button ref={primaryButtonRef} onClick={onReceiveHadith}>

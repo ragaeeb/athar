@@ -1,9 +1,17 @@
+import { createLevelCompletionContent } from '@/content/levels/completion-content';
 import type { LevelConfig } from '@/content/levels/types';
 import { getTeacherProfile } from '@/content/scholars/scholar-profiles';
 import { MAP_STYLES } from '@/features/map/lib/map-style';
 
 export const level1: LevelConfig = {
     ambientCue: 'ambient-desert',
+    completionContent: createLevelCompletionContent({
+        eyebrow: 'Makkah Reached',
+        historicalNoteTitle: 'Route Note',
+        nextChapterActionLabel: 'Enter the Hijaz',
+        nextChapterTitle: 'Next Journey: The Hijaz Scholar Circuit',
+        reviewActionLabel: 'Review the Journey',
+    }),
     completionNarration:
         'The first Athar chapter closes as the scholar reaches Makkah with preserved reports and one trusted teacher added to his chain.',
     hadithTokenClusters: [

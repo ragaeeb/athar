@@ -222,8 +222,8 @@ This is the current contract for the vertical slice and is already aligned with 
 - `react-three-map` precision and ergonomics at country-scale distances still need careful handling
 - runtime recovery for map/rendering faults is intentionally minimal and should expand with denser content
 - `GameLoop` is now mostly a bridge, but broader entity presentation still has room to move further into the registry over time
-- content and historical text remain placeholder-heavy outside Level 1
-- audio cues are configured, but checked-in audio assets are not present in `public/audio/**`, so runtime audio currently disables itself cleanly on startup in repo state
+- content and historical text still need deeper editorial review outside the shipped routes, even though Level 2 now has authored chapter content
+- audio cues are configured and a minimal placeholder cue pack is checked into `public/audio/**`, so runtime audio should bootstrap in normal repo state
 - accessibility, localization, and content-governance systems are only partially reflected in the runtime today
 
 ## Approved Near-Term Target Architecture

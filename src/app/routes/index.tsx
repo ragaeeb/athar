@@ -23,6 +23,11 @@ export const IndexRoute = () => {
         navigate('/game/level-1');
     };
 
+    const playChapter = (levelId: string, levelOrder: number) => {
+        startLevel(levelOrder);
+        navigate(`/game/${levelId}`);
+    };
+
     return (
         <main className="relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(31,157,149,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(233,196,106,0.16),transparent_28%)]" />
@@ -39,9 +44,9 @@ export const IndexRoute = () => {
                             Cross the classical Islamic world and preserve knowledge before it is lost.
                         </h1>
                         <p className="mt-5 max-w-2xl text-base leading-7 text-sand-100/75">
-                            This first implementation ships a full desktop vertical slice: a character-select title
-                            screen, one playable map chapter, scholar encounters, losable hadith tokens, and a level
-                            completion flow.
+                            This implementation now ships two playable desktop chapters: a character-select title
+                            screen, sequential map routes, scholar encounters, losable hadith tokens, and a
+                            chapter-specific completion flow.
                         </p>
                         <div className="mt-8 flex flex-wrap gap-4">
                             <Button onClick={onStartAthar} className="px-6">
@@ -112,6 +117,16 @@ export const IndexRoute = () => {
                                     </p>
                                     <h3 className="mt-3 font-display text-xl text-sand-50">{level.subtitle}</h3>
                                     <p className="mt-3 text-sm leading-6 text-sand-100/70">{level.teaser}</p>
+                                    {level.playable && unlocked ? (
+                                        <Button
+                                            className="mt-4"
+                                            onClick={() => playChapter(level.id, level.order)}
+                                            size="sm"
+                                            variant={level.order === 1 ? 'primary' : 'secondary'}
+                                        >
+                                            {level.order === 1 ? 'Play Level 1' : `Play ${level.name}`}
+                                        </Button>
+                                    ) : null}
                                 </article>
                             );
                         })}

@@ -1,8 +1,12 @@
 import { useAnimations, useGLTF } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { FrontSide, LoopRepeat, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHARACTER_CONFIGS, PLAYER_MODEL_PATH } from '@/content/characters/characters';
+import {
+    filterValidAnimationClips,
+    resolveCharacterAnimationNames,
+} from '@/features/characters/components/player-animation-utils';
 import { atharDebugLog } from '@/features/debug/debug';
 import { usePlayerRuntimeSpeed } from '@/features/gameplay/runtime/player-runtime';
 import { useGameStore } from '@/features/gameplay/state/game.store';
@@ -12,8 +16,6 @@ type CharacterModelProps = {
     modelPath: string;
     speed: number;
 };
-
-const animationNameMatches = (name: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(name));
 
 const normalizeStandardMaterial = (material: MeshStandardMaterial) => {
     if (material.map) {
@@ -53,30 +55,11 @@ const prepareCharacterSceneNode = (child: unknown) => {
 
 const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
     const gltf = useGLTF(modelPath);
-    const validAnimations = useMemo(
-        () => gltf.animations.filter((clip) => clip.duration > 0.05 && clip.tracks.length > 0),
-        [gltf.animations],
-    );
-    const scene = useMemo(() => {
-        const clonedScene = clone(gltf.scene);
-        clonedScene.traverse(prepareCharacterSceneNode);
-
-        return clonedScene;
-    }, [gltf.scene]);
+    const validAnimations = filterValidAnimationClips(gltf.animations);
+    const scene = clone(gltf.scene);
+    scene.traverse(prepareCharacterSceneNode);
     const { actions } = useAnimations(validAnimations, scene);
-    const animationNames = useMemo(() => validAnimations.map((clip) => clip.name), [validAnimations]);
-    const fallbackAnimation = animationNames[0] ?? null;
-    const locomotionAnimation = useMemo(
-        () =>
-            animationNames.find((name) =>
-                animationNameMatches(name, [/walk/i, /run/i, /jog/i, /locomot/i, /mixamo/i]),
-            ) ?? fallbackAnimation,
-        [animationNames, fallbackAnimation],
-    );
-    const idleAnimation = useMemo(
-        () => animationNames.find((name) => animationNameMatches(name, [/idle/i, /stand/i])) ?? null,
-        [animationNames],
-    );
+    const { animationNames, idleAnimation, locomotionAnimation } = resolveCharacterAnimationNames(validAnimations);
     const activeAnimationName = speed > 0 ? locomotionAnimation : idleAnimation;
 
     useEffect(() => {
@@ -97,6 +80,7 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
             {
                 actionNames: Object.keys(actions),
                 activeAnimationName,
+                animationNames,
                 idleAnimation,
                 locomotionAnimation,
                 speed,

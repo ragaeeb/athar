@@ -15,18 +15,17 @@ describe('gameplay stores', () => {
         resetPlayerStore();
     });
 
-    it('banks tokens into locked hadith and permanent progression', () => {
+    it('banks tokens into locked hadith without inflating permanent progression mid-run', () => {
         useLevelStore.getState().initializeLevel(level1);
         usePlayerStore.getState().addToken(14);
 
         const banked = usePlayerStore.getState().bankTokens();
         useLevelStore.getState().addLockedHadith(banked);
-        useGameStore.getState().addVerifiedHadith(banked);
 
         expect(banked).toBe(14);
         expect(usePlayerStore.getState().hadithTokens).toBe(0);
         expect(useLevelStore.getState().lockedHadith).toBe(14);
-        expect(useGameStore.getState().totalHadithVerified).toBe(14);
+        expect(useGameStore.getState().totalHadithVerified).toBe(0);
     });
 
     it('loses half of carried tokens and clears expired scattered tokens', () => {

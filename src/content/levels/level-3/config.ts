@@ -1,9 +1,15 @@
+import { createLevelCompletionContent } from '@/content/levels/completion-content';
 import type { LevelConfig } from '@/content/levels/types';
 import { getTeacherProfile } from '@/content/scholars/scholar-profiles';
 import { MAP_STYLES } from '@/features/map/lib/map-style';
 
 export const level3: LevelConfig = {
     ambientCue: 'ambient-city',
+    completionContent: createLevelCompletionContent({
+        eyebrow: 'Iraq Circuit Complete',
+        nextChapterActionLabel: 'Return East',
+        nextChapterTitle: 'Next Journey: Persia and the East',
+    }),
     completionNarration: 'Planned phase placeholder.',
     hadithTokenClusters: [],
     historicalNote: 'Future phase placeholder.',

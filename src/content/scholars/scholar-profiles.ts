@@ -4,10 +4,11 @@ export type TeacherProfile = Omit<TeacherConfig, 'coords'>;
 
 export const TEACHER_PROFILES = {
     'abdullah-ibn-yusuf': {
-        city: 'Madinah',
-        hadith: 'Placeholder teaching excerpt: a sound report depends on reliability, memory, and trustworthiness.',
-        hadithSource: 'Placeholder source note for development build',
-        historicalNote: 'This character is present in future level data and currently serves as scaffold content.',
+        city: 'Damascus',
+        hadith: 'Athar teaching paraphrase: the chain is protected by trustworthy transmitters, careful memory, and disciplined review.',
+        hadithSource: 'Athar authored teaching paraphrase for the Hijaz chapter',
+        historicalNote:
+            'Abdullah ibn Yusuf appears in the early Bukhari teaching chain and anchors the middle leg of the Hijaz route in this build.',
         id: 'abdullah-ibn-yusuf',
         name: 'Abdullah ibn Yusuf',
         title: 'Transmitter of Damascus',
@@ -34,19 +35,20 @@ export const TEACHER_PROFILES = {
     },
     'ali-ibn-al-madini': {
         city: 'Madinah',
-        hadith: 'Placeholder teaching excerpt: knowledge becomes firm through careful transmission and honest attribution.',
-        hadithSource: 'Placeholder source note for development build',
+        hadith: 'Athar teaching paraphrase: the strongest collector tests narrators closely and refuses to let subtle defects pass unnoticed.',
+        hadithSource: 'Athar authored teaching paraphrase for the Hijaz chapter',
         historicalNote:
-            'Ali ibn al-Madini is included as a future-level teacher and helps shape the wider scholarly chain.',
+            'Ali ibn al-Madini is presented here as the culminating scholar of the Hijaz chapter, emphasizing hadith criticism and transmission discipline.',
         id: 'ali-ibn-al-madini',
         name: 'Ali ibn al-Madini',
         title: 'Critical Hadith Scholar',
     },
     'ibn-abi-uways': {
         city: 'Makkah',
-        hadith: 'Placeholder teaching excerpt: perseverance in study opens roads that seem closed to the impatient.',
-        hadithSource: 'Placeholder source note for development build',
-        historicalNote: 'This teacher supports the later Hijaz route once the next levels are expanded.',
+        hadith: 'Athar teaching paraphrase: endurance in study matters because reliable knowledge is gathered in stages, not in a single sitting.',
+        hadithSource: 'Athar authored teaching paraphrase for the Hijaz chapter',
+        historicalNote:
+            'Ibn Abi Uways now serves as the opening teacher of the Hijaz chapter and introduces the player to repeated banking of hadith before the northern route.',
         id: 'ibn-abi-uways',
         name: 'Ibn Abi Uways',
         title: 'Teacher of the Hijaz',

@@ -19,6 +19,8 @@ import type {
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
+import { useGameplaySessionStore } from '@/features/gameplay/state/session.store';
+import { getSimulationCharacterModifiers } from '@/features/gameplay/systems/game-loop-runtime';
 
 const PLAYER_ENTITY_ID = 'player';
 const GAME_LOOP_SPIKE_THRESHOLD_MS = 25;
@@ -58,7 +60,7 @@ const readSimulationLevelState = (): SimulationLevelState => {
     };
 };
 
-const readSimulationState = (): SimulationState | null => {
+const readSimulationState = (movementSpeedMultiplier: number): SimulationState | null => {
     const levelState = useLevelStore.getState();
     if (!levelState.config) {
         return null;
@@ -68,11 +70,7 @@ const readSimulationState = (): SimulationState | null => {
     const characterConfig = CHARACTER_CONFIGS[selectedCharacter];
 
     return {
-        character: {
-            obstacleDamageMultiplier: characterConfig.obstacleDamageMultiplier,
-            speedMultiplier: characterConfig.speedMultiplier,
-            tokenRadiusMultiplier: characterConfig.tokenRadiusMultiplier,
-        },
+        character: getSimulationCharacterModifiers(characterConfig, movementSpeedMultiplier),
         level: levelState.config,
         levelState: readSimulationLevelState(),
         nowMs: Date.now(),
@@ -99,8 +97,13 @@ const applySimulationEvents = (events: SimulationEvent[]) => {
     }
 };
 
-export const GameLoop = () => {
+type GameLoopProps = {
+    movementSpeedMultiplier?: number;
+};
+
+export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
     const levelId = useLevelStore((state) => state.config?.id);
+    const paused = useGameplaySessionStore((state) => state.paused);
     const runnerRef = useRef<SimulationRunner>(createSimulationRunner({ variableTimestep: true }));
     const lastFrameAtMsRef = useRef(performance.now());
 
@@ -111,6 +114,11 @@ export const GameLoop = () => {
 
     useFrame(() => {
         if (!levelId) {
+            return;
+        }
+
+        if (paused) {
+            lastFrameAtMsRef.current = performance.now();
             return;
         }
 
@@ -137,7 +145,7 @@ export const GameLoop = () => {
             );
         }
 
-        const state = readSimulationState();
+        const state = readSimulationState(movementSpeedMultiplier);
         if (!state || state.levelState.isComplete) {
             return;
         }

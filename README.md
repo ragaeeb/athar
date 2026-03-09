@@ -12,18 +12,20 @@
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/ragaeeb/athar?utm_source=oss&utm_medium=github&utm_campaign=ragaeeb%2Fathar&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 [![codecov](https://codecov.io/gh/ragaeeb/athar/graph/badge.svg?token=YTX69MN0H9)](https://codecov.io/gh/ragaeeb/athar)
 
-Athar is a web-based 3D educational map game inspired by Imam al-Bukhari's travels collecting hadith across the classical Islamic world. The current build is a desktop-first vertical slice with a playable Level 1, scholar selection, token collection, teacher encounters, milestone progression, and a completion flow.
+Athar is a web-based 3D educational map game inspired by Imam al-Bukhari's travels collecting hadith across the classical Islamic world. The current build is a desktop-first vertical slice with two playable chapters, scholar selection, token collection, teacher encounters, milestone progression, and chapter-specific completion flows.
 
 ## Current Status
 
-- One fully playable level: Bukhara to Makkah
+- Two playable chapters:
+  - Level 1: Bukhara to Makkah
+  - Level 2: Makkah to Madinah
 - Raster-tile MapLibre backdrop with React Three Fiber gameplay rendering
 - Four playable scholars:
   - Al-Bukhari
   - Muslim b. al-Hajjaj
   - Abu Dawud al-Sijistani
   - Abu Isa al-Tirmidhi
-- Levels 2 to 5 are scaffolded but not yet fully implemented
+- Levels 3 to 5 are scaffolded but not yet fully implemented
 
 ## Tech Stack
 
@@ -82,17 +84,16 @@ bun run build
 
 ## Audio Note
 
-- The repo currently ships audio cue mappings in [src/content/audio/cues.ts](./src/content/audio/cues.ts), but the checked-in [public/audio](./public/audio) folders only contain placeholder `.gitkeep` files.
-- Because of that, runtime audio now disables itself cleanly at startup when those files are missing instead of repeatedly failing during play.
-- If real audio is added later, place the referenced files under `public/audio/**` so Howler can resolve them directly.
+- The repo now ships a minimal placeholder cue pack under [public/audio](./public/audio) that matches the mappings in [src/content/audio/cues.ts](./src/content/audio/cues.ts).
+- Runtime audio should stay enabled in normal repo state as long as those files remain present and readable.
+- If you replace the placeholders later, keep the same paths under `public/audio/**` so Howler can resolve them directly.
 
 ## Current Limitations
 
 - Player speed is still intentionally compressed for gameplay pacing
-- Levels 2 to 5 are still content scaffolds
-- Hadith excerpts are placeholders and still need sourcing/review
-- Mobile controls, richer audio layering, and denser world rendering are still future work
-- Checked-in audio assets are not present yet, so sound is expected to be disabled in the current repo state
+- Levels 3 to 5 are still content scaffolds
+- Teacher dialogue is authored paraphrase and still needs deeper scholarly review before any broader public release
+- Mobile controls and denser world rendering are still future work
 
 ## License / Assets
 

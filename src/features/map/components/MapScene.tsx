@@ -2,7 +2,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { AdaptiveDpr, Environment } from '@react-three/drei';
 import type { ErrorEvent, MapContextEvent } from 'maplibre-gl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MapLibreMap, { type MapRef } from 'react-map-gl/maplibre';
 import { Canvas } from 'react-three-map/maplibre';
 import { PCFShadowMap } from 'three';
@@ -27,6 +27,56 @@ type MapSceneProps = {
     onRuntimeIssueChange?: (issue: MapRuntimeIssue | null) => void;
 };
 
+const getMapErrorDetails = (error: unknown): { message: string; type: string | null } => {
+    const parseMessage = (value: string) => {
+        try {
+            const parsed = JSON.parse(value) as {
+                message?: unknown;
+                statusMessage?: unknown;
+                type?: unknown;
+            };
+
+            return {
+                message:
+                    typeof parsed.statusMessage === 'string'
+                        ? parsed.statusMessage
+                        : typeof parsed.message === 'string'
+                          ? parsed.message
+                          : value,
+                type: typeof parsed.type === 'string' ? parsed.type : null,
+            };
+        } catch {
+            return {
+                message: value,
+                type: null,
+            };
+        }
+    };
+
+    if (error instanceof Error) {
+        return parseMessage(error.message);
+    }
+
+    if (typeof error === 'string') {
+        return parseMessage(error);
+    }
+
+    if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+        const details = parseMessage(error.message);
+        const errorWithOptionalType = error as { type?: unknown };
+
+        return {
+            message: details.message,
+            type: typeof errorWithOptionalType.type === 'string' ? errorWithOptionalType.type : details.type,
+        };
+    }
+
+    return {
+        message: 'Map assets failed before the chapter finished loading.',
+        type: null,
+    };
+};
+
 export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProps) => {
     const sunPosition = getSunLightPosition(level.origin, level.lighting);
     const mapRef = useRef<MapRef | null>(null);
@@ -43,58 +93,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
         zoom: level.initialView.zoom,
     });
     const [mapLoaded, setMapLoaded] = useState(false);
-
-    const getErrorDetails = useCallback((error: unknown): { message: string; type: string | null } => {
-        const parseMessage = (value: string) => {
-            try {
-                const parsed = JSON.parse(value) as {
-                    message?: unknown;
-                    statusMessage?: unknown;
-                    type?: unknown;
-                };
-
-                return {
-                    message:
-                        typeof parsed.statusMessage === 'string'
-                            ? parsed.statusMessage
-                            : typeof parsed.message === 'string'
-                              ? parsed.message
-                              : value,
-                    type: typeof parsed.type === 'string' ? parsed.type : null,
-                };
-            } catch {
-                return {
-                    message: value,
-                    type: null,
-                };
-            }
-        };
-
-        if (error instanceof Error) {
-            return parseMessage(error.message);
-        }
-
-        if (typeof error === 'string') {
-            return parseMessage(error);
-        }
-
-        if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
-            const details = parseMessage(error.message);
-            const errorWithOptionalType = error as { type?: unknown };
-
-            return {
-                message: details.message,
-                type: typeof errorWithOptionalType.type === 'string' ? errorWithOptionalType.type : details.type,
-            };
-        }
-
-        return {
-            message: 'Map assets failed before the chapter finished loading.',
-            type: null,
-        };
-    }, []);
-
-    const updateRuntimeIssue = useCallback((issue: MapRuntimeIssue | null) => {
+    const updateRuntimeIssue = (issue: MapRuntimeIssue | null) => {
         const nextSignature = issue ? `${issue.code}:${issue.message}` : null;
         if (nextSignature === lastRuntimeIssueSignatureRef.current) {
             return;
@@ -113,7 +112,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
         }
 
         atharDebugLog('map', 'runtime-recovered', { levelId: levelIdRef.current });
-    }, []);
+    };
 
     useEffect(() => {
         levelIdRef.current = level.id;
@@ -269,7 +268,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
         const map = mapRef.current.getMap();
 
         const handleMapError = (event: ErrorEvent) => {
-            const details = getErrorDetails(event.error);
+            const details = getMapErrorDetails(event.error);
             updateRuntimeIssue(createMapAssetRuntimeIssue(details.message, false));
         };
         const handleContextLost = (_event: MapContextEvent) => {
@@ -288,7 +287,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
             map.off('webglcontextlost', handleContextLost);
             map.off('webglcontextrestored', handleContextRestored);
         };
-    }, [getErrorDetails, mapLoaded, updateRuntimeIssue]);
+    }, [mapLoaded]);
 
     return (
         <MapLibreMap
@@ -297,7 +296,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
             initialViewState={level.initialView}
             keyboard={false}
             onError={(event) => {
-                const details = getErrorDetails(event.error);
+                const details = getMapErrorDetails(event.error);
                 const blocking = !mapLoaded && details.type !== 'webglcontextcreationerror';
                 updateRuntimeIssue(createMapAssetRuntimeIssue(details.message, blocking));
             }}

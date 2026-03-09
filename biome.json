@@ -50,6 +50,17 @@
             "recommended": true,
             "style": {
                 "noNonNullAssertion": "off",
+                "noRestrictedImports": {
+                    "level": "warn",
+                    "options": {
+                        "paths": {
+                            "react": {
+                                "importNames": ["useMemo", "useCallback"],
+                                "message": "React Compiler is enabled. Do not import useMemo or useCallback without an explicitly reviewed escape hatch."
+                            }
+                        }
+                    }
+                },
                 "useBlockStatements": {
                     "fix": "safe",
                     "level": "error",
