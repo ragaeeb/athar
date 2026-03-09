@@ -69,6 +69,24 @@ describe('player-animation-utils', () => {
         });
     });
 
+    it('uses the idle cutoff consistently around the threshold', () => {
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Idle Pose',
+                locomotionAnimation: 'Walk Forward',
+                speed: 1,
+            }),
+        ).toBe('Idle Pose');
+
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Idle Pose',
+                locomotionAnimation: 'Walk Forward',
+                speed: 1.01,
+            }),
+        ).toBe('Walk Forward');
+    });
+
     it('resolves the active animation name from runtime speed without React state', () => {
         expect(
             resolveActiveCharacterAnimationName({

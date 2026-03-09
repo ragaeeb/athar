@@ -2,6 +2,8 @@ import type { ChipProps } from '@/shared/ui/Chip';
 
 type ChipTone = NonNullable<ChipProps['tone']>;
 
+const OBJECTIVE_PROXIMITY_THRESHOLD_METERS = 120_000;
+
 export const resolveHadithFeedbackTone = (currentTotal: number, requiredTotal: number): ChipTone => {
     if (currentTotal >= requiredTotal) {
         return 'success';
@@ -27,7 +29,7 @@ export const resolveObjectiveFeedbackTone = (hasObjective: boolean, distanceMete
         return 'success';
     }
 
-    if (distanceMeters < 120_000) {
+    if (distanceMeters < OBJECTIVE_PROXIMITY_THRESHOLD_METERS) {
         return 'warning';
     }
 
