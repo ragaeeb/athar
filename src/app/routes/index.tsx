@@ -123,7 +123,7 @@ export const IndexRoute = () => {
                                             size="sm"
                                             variant={level.order === 1 ? 'primary' : 'secondary'}
                                         >
-                                            {level.order === 1 ? 'Play Level 1' : `Play ${level.name}`}
+                                            {`Play Chapter ${level.order}`}
                                         </Button>
                                     ) : null}
                                 </article>

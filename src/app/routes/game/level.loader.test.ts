@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { gameLevelLoader } from '@/app/routes/game/level.loader';
+import { gameLevelLoader, parseGameLevelLoaderData } from '@/app/routes/game/level.loader';
 import { level1 } from '@/content/levels/level-1/config';
 import * as levelRegistry from '@/content/levels/registry';
 import { worldDistanceInMeters } from '@/shared/geo';
@@ -69,6 +69,26 @@ describe('gameLevelLoader', () => {
         expect(gameLevelLoader(createLoaderArgs('level-1', '?atharWalkSpeed=999')).runtimeOverrides).toEqual({
             movementSpeedMultiplier: 20,
         });
+    });
+
+    it('rejects malformed runtime overrides in loader data instead of silently defaulting them', () => {
+        expect(() =>
+            parseGameLevelLoaderData({
+                level: level1,
+                runtimeOverrides: {
+                    movementSpeedMultiplier: 'fast',
+                },
+            }),
+        ).toThrow('Invalid game level runtime overrides.');
+
+        expect(() =>
+            parseGameLevelLoaderData({
+                level: level1,
+                runtimeOverrides: {
+                    movementSpeedMultiplier: 0.05,
+                },
+            }),
+        ).toThrow('Invalid game level runtime overrides.');
     });
 
     it('throws a 400 response when the route param is missing', async () => {

@@ -106,7 +106,7 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
     const paused = useGameplaySessionStore((state) => state.paused);
     const runnerRef = useRef<SimulationRunner>(createSimulationRunner({ variableTimestep: true }));
     const lastFrameAtMsRef = useRef(performance.now());
-    const simulationNowMsRef = useRef(Date.now());
+    const simulationNowMsRef = useRef(0);
 
     useEffect(() => {
         const initialNowMs = Date.now();

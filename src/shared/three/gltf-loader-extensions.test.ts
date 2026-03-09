@@ -3,9 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
     let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+    let warnMessages: string[] = [];
 
     beforeEach(() => {
-        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        warnMessages = [];
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation((message: unknown) => {
+            warnMessages.push(String(message));
+        });
     });
 
     afterEach(() => {
@@ -51,6 +55,7 @@ describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
         );
         expect(materialParams.opacity).toBeCloseTo(0.8, 5);
         expect(materialParams.color).toBeInstanceOf(Color);
+        expect(warnMessages).toEqual(['THREE.WARNING: Multiple instances of Three.js being imported.']);
     });
 
     it('does nothing for materials without the spec-gloss extension', async () => {
@@ -70,5 +75,6 @@ describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
         await extension.extendMaterialParams(0, materialParams);
         expect(assignTexture).not.toHaveBeenCalled();
         expect(materialParams).toEqual({});
+        expect(warnMessages).toEqual([]);
     });
 });

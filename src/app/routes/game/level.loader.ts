@@ -21,18 +21,29 @@ const parseGameLevelLoaderData = (value: unknown): GameLevelLoaderData => {
         throw new Error('Invalid game level loader data.');
     }
 
-    const runtimeOverrides =
-        'runtimeOverrides' in value &&
-        typeof value.runtimeOverrides === 'object' &&
-        value.runtimeOverrides !== null &&
-        'movementSpeedMultiplier' in value.runtimeOverrides &&
-        typeof value.runtimeOverrides.movementSpeedMultiplier === 'number'
-            ? {
-                  movementSpeedMultiplier: value.runtimeOverrides.movementSpeedMultiplier,
-              }
-            : {
-                  movementSpeedMultiplier: DEFAULT_MOVEMENT_SPEED_MULTIPLIER,
-              };
+    let runtimeOverrides: GameLevelRuntimeOverrides = {
+        movementSpeedMultiplier: DEFAULT_MOVEMENT_SPEED_MULTIPLIER,
+    };
+
+    if ('runtimeOverrides' in value) {
+        const candidate = value.runtimeOverrides;
+
+        if (
+            typeof candidate !== 'object' ||
+            candidate === null ||
+            !('movementSpeedMultiplier' in candidate) ||
+            typeof candidate.movementSpeedMultiplier !== 'number' ||
+            !Number.isFinite(candidate.movementSpeedMultiplier) ||
+            candidate.movementSpeedMultiplier < 0.1 ||
+            candidate.movementSpeedMultiplier > 20
+        ) {
+            throw new Error('Invalid game level runtime overrides.');
+        }
+
+        runtimeOverrides = {
+            movementSpeedMultiplier: candidate.movementSpeedMultiplier,
+        };
+    }
 
     return {
         level: parseLevelConfig(value.level),

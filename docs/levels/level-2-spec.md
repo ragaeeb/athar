@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented for Phase 2.
+Partially implemented for Phase 2.
 
 ## Chapter
 
@@ -49,13 +49,19 @@ Implemented for Phase 2.
 ## Phase 2 Checklist
 
 - [x] Level 2 has authored milestones, hazards, teachers, and token clusters.
-- [x] Level 2 is marked playable and reachable from the normal chapter flow.
+- [ ] Production Level 2 content is complete and reviewed end to end.
 - [x] Completion flow has chapter-specific copy.
 - [x] Replay-safe hadith accounting works with a second chapter.
 - [x] Desktop deterministic smoke covers Level 2 completion.
-- [x] Mobile viewport smoke covers basic Level 2 route load plus pause/resume.
+- [ ] Mobile smoke is complete for the supported gameplay path.
+
+## Remaining Phase 2 Gaps
+
+- Production Level 2 content still needs a full authored pass beyond the current scaffold-heavy implementation.
+- Mobile smoke remains out of scope for the current desktop-first release and should not be treated as complete yet.
 
 ## Follow-up Risks
 
 - The checked-in audio cue pack is still a minimal placeholder mix, not final production audio design.
 - Teacher dialogue remains authored paraphrase and should still receive domain review before any broader public release.
+- PR notes reconciliation: the remaining Level 2 work is the unfinished production content pass and the deferred mobile smoke coverage, which should stay aligned with the checklist above.

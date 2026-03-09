@@ -3,7 +3,9 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GameLevelRoute } from '@/app/routes/game/level-route';
+import { DEFAULT_MOVEMENT_SPEED_MULTIPLIER } from '@/app/routes/game/runtime-overrides';
 import { level1 } from '@/content/levels/level-1/config';
+import { parseLevelConfig } from '@/content/levels/schema';
 import { resetGameStore, useGameStore } from '@/features/gameplay/state/game.store';
 import { resetLevelStore, useLevelStore } from '@/features/gameplay/state/level.store';
 import { resetPlayerStore, usePlayerStore } from '@/features/gameplay/state/player.store';
@@ -55,7 +57,12 @@ const renderRoute = () => {
             {
                 element: <GameLevelRoute />,
                 HydrateFallback: () => null,
-                loader: () => ({ level: level1 }),
+                loader: () => ({
+                    level: parseLevelConfig(level1),
+                    runtimeOverrides: {
+                        movementSpeedMultiplier: DEFAULT_MOVEMENT_SPEED_MULTIPLIER,
+                    },
+                }),
                 path: '/game/level-1',
             },
         ],
@@ -113,6 +120,7 @@ describe('GameLevelRoute', () => {
         usePlayerStore.getState().addToken(7);
         useLevelStore.getState().completeTeacher('makki-ibn-ibrahim');
         useLevelStore.getState().addLockedHadith(3);
+        useGameStore.setState({ totalHadithVerified: 19 });
 
         fireEvent.click(screen.getByRole('button', { name: /pause journey/i }));
         fireEvent.click(await screen.findByRole('button', { name: /restart chapter/i }));
@@ -122,6 +130,7 @@ describe('GameLevelRoute', () => {
             expect(usePlayerStore.getState().hadithTokens).toBe(0);
             expect(useLevelStore.getState().lockedHadith).toBe(0);
             expect(useLevelStore.getState().completedTeacherIds).toEqual([]);
+            expect(useGameStore.getState().totalHadithVerified).toBe(19);
         });
     });
 });

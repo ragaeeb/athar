@@ -71,14 +71,15 @@ export const buildNormalizedSceneModel = ({
     );
     clonedScene.updateMatrixWorld(true);
 
-    const bounds = new Box3().setFromObject(clonedScene);
+    const bounds = new Box3().setFromObject(clonedScene, true);
     const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
     const safeHeight = Math.max(size.y, 0.001);
+    const minY = bounds.isEmpty() || !Number.isFinite(bounds.min.y) ? 0 : bounds.min.y;
 
     return {
         normalizedScale: targetHeight / safeHeight,
         normalizedScene: clonedScene,
-        sceneOffset: [-center.x, -bounds.min.y, -center.z],
+        sceneOffset: [-center.x, -minY, -center.z],
     };
 };

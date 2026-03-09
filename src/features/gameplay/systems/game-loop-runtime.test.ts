@@ -21,11 +21,6 @@ describe('getSimulationCharacterModifiers', () => {
         });
     });
 
-    it('advances the authoritative simulation clock from frame delta instead of wall-clock reads', () => {
-        expect(advanceSimulationNowMs(1_000, 16.67)).toBeCloseTo(1_016.67, 5);
-        expect(advanceSimulationNowMs(1_016.67, 0)).toBeCloseTo(1_016.67, 5);
-    });
-
     it('handles multiplier of 1 (identity)', () => {
         const result = getSimulationCharacterModifiers(CHARACTER_CONFIGS.muslim, 1);
         expect(result.speedMultiplier).toBe(CHARACTER_CONFIGS.muslim.speedMultiplier);
@@ -34,5 +29,12 @@ describe('getSimulationCharacterModifiers', () => {
     it('handles multiplier of 0', () => {
         const result = getSimulationCharacterModifiers(CHARACTER_CONFIGS.muslim, 0);
         expect(result.speedMultiplier).toBe(0);
+    });
+});
+
+describe('advanceSimulationNowMs', () => {
+    it('advances the authoritative simulation clock from frame delta instead of wall-clock reads', () => {
+        expect(advanceSimulationNowMs(1_000, 16.67)).toBeCloseTo(1_016.67, 5);
+        expect(advanceSimulationNowMs(1_016.67, 0)).toBeCloseTo(1_016.67, 5);
     });
 });

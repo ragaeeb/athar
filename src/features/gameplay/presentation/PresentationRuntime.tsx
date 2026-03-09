@@ -342,6 +342,7 @@ const recordPresentationMotionDiagnostics = ({
     timestampMs,
     viewportHeight,
     viewportWidth,
+    worldPositionScratch,
 }: {
     cameraCommitStepMeters: number;
     jumpToDurationMs: number;
@@ -355,14 +356,14 @@ const recordPresentationMotionDiagnostics = ({
     timestampMs: number;
     viewportHeight: number;
     viewportWidth: number;
+    worldPositionScratch: Vector3;
 }) => {
     if (!isAtharDebugEnabled()) {
         return;
     }
 
-    const worldPosition = new Vector3();
     playerRef.updateWorldMatrix(true, false);
-    playerRef.getWorldPosition(worldPosition);
+    playerRef.getWorldPosition(worldPositionScratch);
 
     const { frame, nextState } = buildPresentationMotionFrame(
         {
@@ -373,9 +374,9 @@ const recordPresentationMotionDiagnostics = ({
             mapCenter: recordedCenter,
             playerScreenPosition: projectedPlayer,
             playerWorldPosition: {
-                x: worldPosition.x,
-                y: worldPosition.y,
-                z: worldPosition.z,
+                x: worldPositionScratch.x,
+                y: worldPositionScratch.y,
+                z: worldPositionScratch.z,
             },
             sequence,
             speed: presented.speed,
@@ -400,6 +401,7 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
     const lastEmittedSpeedRef = useRef(-1);
     const motionStateRef = useRef<PresentationMotionState>(createEmptyMotionState());
     const staticCameraModeRef = useRef(readStaticCameraMode());
+    const worldPositionScratchRef = useRef(new Vector3());
 
     useEffect(() => {
         return () => {
@@ -442,6 +444,7 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
 
         const drainResult = drainForPresentation(lastRenderedSequenceRef.current);
         if (!drainResult) {
+            motionStateRef.current = createEmptyMotionState();
             return;
         }
 
@@ -456,6 +459,7 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
         const playerRef = syncPresentedPlayerToScene(origin, presented);
 
         if (!useLevelStore.getState().config) {
+            motionStateRef.current = createEmptyMotionState();
             return;
         }
 
@@ -487,6 +491,7 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
         });
 
         if (!playerRef) {
+            motionStateRef.current = createEmptyMotionState();
             return;
         }
 
@@ -503,6 +508,7 @@ export const PresentationRuntime = ({ origin }: PresentationRuntimeProps) => {
             timestampMs: nowMs,
             viewportHeight,
             viewportWidth,
+            worldPositionScratch: worldPositionScratchRef.current,
         });
     });
 

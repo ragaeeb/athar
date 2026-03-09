@@ -5,6 +5,7 @@ import {
     Group,
     Mesh,
     MeshBasicMaterial,
+    PerspectiveCamera,
     Skeleton,
     SkinnedMesh,
     Uint16BufferAttribute,
@@ -118,5 +119,42 @@ describe('gltf-scene-model-utils', () => {
         expect(result.sceneOffset[0]).toBeCloseTo(0, 5);
         expect(result.sceneOffset[1]).toBeCloseTo(0, 5);
         expect(result.sceneOffset[2]).toBeCloseTo(0, 5);
+    });
+
+    it('returns finite normalization values for an empty scene', () => {
+        const sourceScene = new Group();
+
+        const result = buildNormalizedSceneModel({
+            materialCustomizer: undefined,
+            materialMode: 'authored',
+            scene: sourceScene,
+            targetHeight: 8,
+        });
+
+        expect(result.normalizedScale).toBeCloseTo(8_000, 5);
+        expect(result.sceneOffset[0]).toBeCloseTo(0, 5);
+        expect(result.sceneOffset[1]).toBeCloseTo(0, 5);
+        expect(result.sceneOffset[2]).toBeCloseTo(0, 5);
+        expect(result.sceneOffset.every(Number.isFinite)).toBe(true);
+    });
+
+    it('returns finite normalization values for camera-only scenes', () => {
+        const sourceScene = new Group();
+        const camera = new PerspectiveCamera(45, 1, 0.1, 100);
+        camera.position.set(0, 4, 8);
+        sourceScene.add(camera);
+
+        const result = buildNormalizedSceneModel({
+            materialCustomizer: undefined,
+            materialMode: 'authored',
+            scene: sourceScene,
+            targetHeight: 8,
+        });
+
+        expect(result.normalizedScale).toBeCloseTo(8_000, 5);
+        expect(result.sceneOffset[0]).toBeCloseTo(0, 5);
+        expect(result.sceneOffset[1]).toBeCloseTo(0, 5);
+        expect(result.sceneOffset[2]).toBeCloseTo(0, 5);
+        expect(result.sceneOffset.every(Number.isFinite)).toBe(true);
     });
 });
