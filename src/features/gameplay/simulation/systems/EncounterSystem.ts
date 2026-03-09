@@ -9,6 +9,7 @@ import {
     findReachedMilestone,
     findTeacherEncounter,
     findTriggeredObstacle,
+    isWithinCompletedMilestoneSafeZone,
 } from '@/features/gameplay/simulation/systems/CollisionSystem';
 import {
     OBSTACLE_HIT_COOLDOWN_MS,
@@ -137,6 +138,7 @@ const applyObstacleEffects = (
     const obstacle = findTriggeredObstacle(player.coords, state.level);
     if (
         !obstacle ||
+        isWithinCompletedMilestoneSafeZone(player.coords, state.level, levelState.completedMilestoneIds) ||
         obstacle.type === 'sandstorm' ||
         state.nowMs - player.lastHitAt <= OBSTACLE_HIT_COOLDOWN_MS ||
         player.hadithTokens <= 0

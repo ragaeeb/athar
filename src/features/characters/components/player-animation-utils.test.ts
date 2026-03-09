@@ -69,6 +69,24 @@ describe('player-animation-utils', () => {
         });
     });
 
+    it('uses the idle cutoff consistently around the threshold', () => {
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Idle Pose',
+                locomotionAnimation: 'Walk Forward',
+                speed: 1,
+            }),
+        ).toBe('Idle Pose');
+
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Idle Pose',
+                locomotionAnimation: 'Walk Forward',
+                speed: 1.01,
+            }),
+        ).toBe('Walk Forward');
+    });
+
     it('resolves the active animation name from runtime speed without React state', () => {
         expect(
             resolveActiveCharacterAnimationName({
@@ -85,6 +103,16 @@ describe('player-animation-utils', () => {
                 speed: 12,
             }),
         ).toBe('Walk Forward');
+    });
+
+    it('returns no active animation when a single locomotion clip is reused as the fallback idle', () => {
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Take 001',
+                locomotionAnimation: 'Take 001',
+                speed: 0,
+            }),
+        ).toBeNull();
     });
 
     it('switches animation actions imperatively only when the target animation changes', () => {

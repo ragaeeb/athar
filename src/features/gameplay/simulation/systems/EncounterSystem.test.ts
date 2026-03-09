@@ -60,10 +60,14 @@ describe('EncounterSystem', () => {
     });
 
     it('caps obstacle token loss to the number of tokens the player has', () => {
-        const obstacle = level1.obstacles[0];
-        if (!obstacle) {
+        const originalObstacle = level1.obstacles[0];
+        if (!originalObstacle) {
             throw new Error('Level 1 must include at least one obstacle for this test.');
         }
+        const obstacle = {
+            ...originalObstacle,
+            coords: { lat: 38.4, lng: 62.5 },
+        };
 
         const baseState = createSimulationState();
         const result = applyEncounterSystems({
@@ -71,6 +75,10 @@ describe('EncounterSystem', () => {
             character: {
                 ...baseState.character,
                 obstacleDamageMultiplier: 5,
+            },
+            level: {
+                ...level1,
+                obstacles: [obstacle],
             },
             player: {
                 ...baseState.player,
@@ -84,5 +92,31 @@ describe('EncounterSystem', () => {
         expect(result.player.hadithTokens).toBe(0);
         expect(result.player.tokensLost).toBe(1);
         expect(result.levelState.tokens).toHaveLength(1);
+    });
+
+    it('does not retrigger obstacle token loss while standing inside a completed milestone safe zone', () => {
+        const mervMilestone = level1.milestones.find((milestone) => milestone.id === 'merv-crossing');
+        if (!mervMilestone) {
+            throw new Error('Level 1 must include Merv Crossing for this test.');
+        }
+
+        const baseState = createSimulationState();
+        const result = applyEncounterSystems({
+            ...baseState,
+            levelState: {
+                ...baseState.levelState,
+                completedMilestoneIds: ['merv-crossing'],
+            },
+            player: {
+                ...baseState.player,
+                coords: mervMilestone.coords,
+                hadithTokens: 8,
+                positionMeters: metersOffsetFromCoords(mervMilestone.coords, level1.origin),
+            },
+        });
+
+        expect(result.events.some((event) => event.type === 'player-hit')).toBe(false);
+        expect(result.player.hadithTokens).toBe(8);
+        expect(result.player.tokensLost).toBe(0);
     });
 });

@@ -7,21 +7,11 @@ describe('session.store', () => {
         resetGameplaySessionStore();
     });
 
-    it('toggles pause state explicitly', () => {
-        expect(useGameplaySessionStore.getState().paused).toBe(false);
+    it('tracks onboarding dismissal inside the session only', () => {
+        useGameplaySessionStore.getState().dismissOnboarding();
+        expect(useGameplaySessionStore.getState().onboardingDismissed).toBe(true);
 
-        useGameplaySessionStore.getState().pause();
-        expect(useGameplaySessionStore.getState().paused).toBe(true);
-
-        useGameplaySessionStore.getState().resume();
-        expect(useGameplaySessionStore.getState().paused).toBe(false);
-    });
-
-    it('supports toggling and full session reset', () => {
-        useGameplaySessionStore.getState().togglePause();
-        expect(useGameplaySessionStore.getState().paused).toBe(true);
-
-        useGameplaySessionStore.getState().resetSession();
-        expect(useGameplaySessionStore.getState().paused).toBe(false);
+        resetGameplaySessionStore();
+        expect(useGameplaySessionStore.getState().onboardingDismissed).toBe(false);
     });
 });

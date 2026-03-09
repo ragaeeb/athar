@@ -7,6 +7,11 @@ import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import {
+    resolveHadithFeedbackTone,
+    resolveObjectiveFeedbackTone,
+    resolveTeacherFeedbackTone,
+} from '@/features/hud/lib/traversal-feedback';
+import {
     directionLabelFromBearing,
     formatDistance,
     headingBetweenCoords,
@@ -169,6 +174,9 @@ const Drawer = ({ side, title, open, onToggle, children }: DrawerProps) => {
 const NavigationTopBar = memo(
     ({ currentTokens, level, lockedHadith, objective, teacherCount }: NavigationTopBarProps) => {
         const navigation = useNavigationStatus(objective);
+        const objectiveDistanceMeters = objective
+            ? worldDistanceInMeters(objective.coords, getPlayerRuntimeState().coords)
+            : 0;
 
         useEffect(() => {
             atharDebugLog(
@@ -194,13 +202,20 @@ const NavigationTopBar = memo(
                         <p className="truncate font-display text-lg text-sand-50">{level.subtitle}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Chip>
+                        <Chip
+                            tone={resolveHadithFeedbackTone(
+                                lockedHadith + currentTokens,
+                                level.winCondition.requiredHadith,
+                            )}
+                        >
                             {lockedHadith + currentTokens}/{level.winCondition.requiredHadith} hadith
                         </Chip>
-                        <Chip>
+                        <Chip
+                            tone={resolveTeacherFeedbackTone(teacherCount, level.winCondition.requiredTeachers.length)}
+                        >
                             {teacherCount}/{level.winCondition.requiredTeachers.length} teachers
                         </Chip>
-                        <Chip tone="accent">
+                        <Chip tone={resolveObjectiveFeedbackTone(Boolean(objective), objectiveDistanceMeters)}>
                             {objective ? `${navigation.directionLabel} ${navigation.distance}` : 'Route complete'}
                         </Chip>
                     </div>

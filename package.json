@@ -48,7 +48,7 @@
     },
     "engines": {
         "bun": ">=1.3.10",
-        "node": ">=25.0.0"
+        "node": ">=24.0.0"
     },
     "homepage": "https://github.com/ragaeeb/athar#readme",
     "keywords": [
@@ -70,7 +70,7 @@
         "url": "https://github.com/ragaeeb/athar.git"
     },
     "scripts": {
-        "build": "tsc --noEmit && vite build",
+        "build": "bun run lint && tsc --noEmit && vite build",
         "dev": "vite",
         "format": "biome check --write src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
         "lint": "biome check src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html && node scripts/check-simulation-boundary.mjs",
@@ -82,5 +82,5 @@
         "typecheck": "tsc --noEmit"
     },
     "type": "module",
-    "version": "0.0.4"
+    "version": "0.0.5"
 }

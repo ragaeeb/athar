@@ -14,6 +14,7 @@ import {
     setPerfMapViewController,
     updateMapViewSnapshot,
 } from '@/features/debug/perf-metrics';
+import { supportsTouchTraversalControls } from '@/features/gameplay/controllers/touch-support';
 import { getSunLightPosition } from '@/features/map/lib/geo';
 import {
     createMapAssetRuntimeIssue,
@@ -93,6 +94,7 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
         zoom: level.initialView.zoom,
     });
     const [mapLoaded, setMapLoaded] = useState(false);
+    const [touchTraversalMode, setTouchTraversalMode] = useState(false);
     const updateRuntimeIssue = (issue: MapRuntimeIssue | null) => {
         const nextSignature = issue ? `${issue.code}:${issue.message}` : null;
         if (nextSignature === lastRuntimeIssueSignatureRef.current) {
@@ -121,6 +123,10 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
     useEffect(() => {
         onRuntimeIssueChangeRef.current = onRuntimeIssueChange;
     }, [onRuntimeIssueChange]);
+
+    useEffect(() => {
+        setTouchTraversalMode(supportsTouchTraversalControls());
+    }, []);
 
     useEffect(() => {
         lastRuntimeIssueSignatureRef.current = null;
@@ -307,7 +313,10 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
             maxPitch={75}
             dragRotate
             scrollZoom={{ around: 'center' }}
-            touchZoomRotate={{ around: 'center' }}
+            dragPan={!touchTraversalMode}
+            doubleClickZoom={!touchTraversalMode}
+            touchPitch={!touchTraversalMode}
+            touchZoomRotate={touchTraversalMode ? false : { around: 'center' }}
             style={{ height: '100%', width: '100%' }}
             mapStyle={level.mapStyle}
         >

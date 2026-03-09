@@ -2,6 +2,7 @@ import type { AnimationAction, AnimationClip } from 'three';
 import { LoopRepeat } from 'three';
 
 const animationNameMatches = (name: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(name));
+const IDLE_SPEED_EPSILON = 1;
 
 export const filterValidAnimationClips = (animations: AnimationClip[]) =>
     animations.filter((clip) => clip.duration > 0.05 && clip.tracks.length > 0);
@@ -34,7 +35,17 @@ export const resolveActiveCharacterAnimationName = ({
     idleAnimation: string | null;
     locomotionAnimation: string | null;
     speed: number;
-}) => (speed > 0 ? locomotionAnimation : idleAnimation);
+}) => {
+    if (speed > IDLE_SPEED_EPSILON) {
+        return locomotionAnimation;
+    }
+
+    if (idleAnimation && idleAnimation !== locomotionAnimation) {
+        return idleAnimation;
+    }
+
+    return null;
+};
 
 export const syncCharacterAnimationState = ({
     actions,

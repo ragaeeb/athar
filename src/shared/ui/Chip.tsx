@@ -4,7 +4,7 @@ import { cn } from '@/shared/ui/cn';
 
 type ChipTone = 'default' | 'accent' | 'success' | 'warning';
 
-type ChipProps = HTMLAttributes<HTMLDivElement> & {
+export type ChipProps = HTMLAttributes<HTMLDivElement> & {
     tone?: ChipTone;
 };
 
