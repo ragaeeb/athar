@@ -60,13 +60,14 @@ describe('EncounterSystem', () => {
     });
 
     it('caps obstacle token loss to the number of tokens the player has', () => {
-        const obstacle = {
-            ...level1.obstacles[0],
-            coords: { lat: 38.4, lng: 62.5 },
-        };
-        if (!obstacle) {
+        const originalObstacle = level1.obstacles[0];
+        if (!originalObstacle) {
             throw new Error('Level 1 must include at least one obstacle for this test.');
         }
+        const obstacle = {
+            ...originalObstacle,
+            coords: { lat: 38.4, lng: 62.5 },
+        };
 
         const baseState = createSimulationState();
         const result = applyEncounterSystems({
