@@ -72,13 +72,13 @@ describe('EncounterSystem', () => {
         const baseState = createSimulationState();
         const result = applyEncounterSystems({
             ...baseState,
-            level: {
-                ...level1,
-                obstacles: [obstacle],
-            },
             character: {
                 ...baseState.character,
                 obstacleDamageMultiplier: 5,
+            },
+            level: {
+                ...level1,
+                obstacles: [obstacle],
             },
             player: {
                 ...baseState.player,

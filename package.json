@@ -70,7 +70,7 @@
         "url": "https://github.com/ragaeeb/athar.git"
     },
     "scripts": {
-        "build": "tsc --noEmit && vite build",
+        "build": "bun run lint && tsc --noEmit && vite build",
         "dev": "vite",
         "format": "biome check --write src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
         "lint": "biome check src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html && node scripts/check-simulation-boundary.mjs",
