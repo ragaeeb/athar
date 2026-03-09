@@ -1,9 +1,24 @@
 import { Color, MeshBasicMaterial, SRGBColorSpace } from 'three';
-import { describe, expect, it, vi } from 'vitest';
-import { GLTFPBRSpecGlossinessFallbackExtension } from '@/shared/three/gltf-loader-extensions';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+    let warnMessages: string[] = [];
+
+    beforeEach(() => {
+        warnMessages = [];
+        consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation((message: unknown) => {
+            warnMessages.push(String(message));
+        });
+    });
+
+    afterEach(() => {
+        consoleWarnSpy.mockRestore();
+        vi.resetModules();
+    });
+
     it('maps spec-gloss diffuse textures onto a basic material fallback', async () => {
+        const { GLTFPBRSpecGlossinessFallbackExtension } = await import('@/shared/three/gltf-loader-extensions');
         const assignTexture = vi.fn().mockResolvedValue(undefined);
         const parser = {
             assignTexture,
@@ -40,9 +55,11 @@ describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
         );
         expect(materialParams.opacity).toBeCloseTo(0.8, 5);
         expect(materialParams.color).toBeInstanceOf(Color);
+        expect(warnMessages).toEqual(['THREE.WARNING: Multiple instances of Three.js being imported.']);
     });
 
     it('does nothing for materials without the spec-gloss extension', async () => {
+        const { GLTFPBRSpecGlossinessFallbackExtension } = await import('@/shared/three/gltf-loader-extensions');
         const assignTexture = vi.fn().mockResolvedValue(undefined);
         const parser = {
             assignTexture,
@@ -58,5 +75,6 @@ describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
         await extension.extendMaterialParams(0, materialParams);
         expect(assignTexture).not.toHaveBeenCalled();
         expect(materialParams).toEqual({});
+        expect(warnMessages).toEqual([]);
     });
 });

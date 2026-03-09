@@ -1,9 +1,15 @@
+import { createLevelCompletionContent } from '@/content/levels/completion-content';
 import type { LevelConfig } from '@/content/levels/types';
 import { getTeacherProfile } from '@/content/scholars/scholar-profiles';
 import { MAP_STYLES } from '@/features/map/lib/map-style';
 
 export const level4: LevelConfig = {
     ambientCue: 'ambient-desert',
+    completionContent: createLevelCompletionContent({
+        eyebrow: 'Eastern Route Complete',
+        nextChapterActionLabel: 'Begin the Finale',
+        nextChapterTitle: 'Next Journey: The Final Compilation',
+    }),
     completionNarration: 'Planned phase placeholder.',
     hadithTokenClusters: [],
     historicalNote: 'Future phase placeholder.',

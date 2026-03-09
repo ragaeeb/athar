@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLoaderData, useNavigate } from 'react-router-dom';
 
 import { parseGameLevelLoaderData } from '@/app/routes/game/level.loader';
@@ -6,12 +6,15 @@ import { LEVEL_REGISTRY } from '@/content/levels/registry';
 import type { LevelConfig } from '@/content/levels/types';
 import { audioManager } from '@/features/audio/audio-manager';
 import { useAtharDevTools } from '@/features/debug/dev-tools';
+import { clearInputState } from '@/features/gameplay/controllers/input-state';
 import { PlayerController } from '@/features/gameplay/controllers/PlayerController';
 import { PresentationRuntime } from '@/features/gameplay/presentation/PresentationRuntime';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
+import { resetGameplaySessionStore, useGameplaySessionStore } from '@/features/gameplay/state/session.store';
 import { GameLoop } from '@/features/gameplay/systems/GameLoop';
+import { GameplayPauseOverlay } from '@/features/hud/components/GameplayPauseOverlay';
 import { HUD } from '@/features/hud/components/HUD';
 import { LevelMap } from '@/features/map/components/LevelMap';
 import { MapRuntimeBoundary } from '@/features/map/components/MapRuntimeBoundary';
@@ -20,6 +23,12 @@ import type { MapRuntimeIssue } from '@/features/map/lib/runtime-issues';
 import { Button, getButtonClassName } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Overlay } from '@/shared/ui/Overlay';
+
+const initializeChapterSession = (level: LevelConfig) => {
+    useGameStore.getState().startLevel(level.order);
+    usePlayerStore.getState().initializePlayer(level.milestones[0]?.coords ?? level.origin, level.origin);
+    useLevelStore.getState().initializeLevel(level);
+};
 
 const LockedLevelView = () => (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -70,7 +79,6 @@ const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
         const carryOver = usePlayerStore.getState().bankTokens();
         if (carryOver > 0) {
             useLevelStore.getState().addLockedHadith(carryOver);
-            useGameStore.getState().addVerifiedHadith(carryOver);
         }
 
         const verifiedHadith = useLevelStore.getState().lockedHadith;
@@ -94,12 +102,14 @@ const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
     return (
         <Overlay>
             <Card tone="reward" className="w-full max-w-lg rounded-[2rem] p-8 text-center">
-                <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">Chapter Complete</p>
+                <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">
+                    {level.completionContent.eyebrow}
+                </p>
                 <h2 className="mt-4 font-display text-4xl text-sand-50">{level.subtitle}</h2>
                 <p className="mt-4 text-sand-100/75">{level.completionNarration}</p>
                 <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
                     <Card tone="muted" className="rounded-2xl p-4">
-                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Hadith</p>
+                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Chapter Verified</p>
                         <p className="mt-2 font-mono text-2xl text-gold-400">{lockedHadith + currentTokens}</p>
                     </Card>
                     <Card tone="muted" className="rounded-2xl p-4">
@@ -112,7 +122,7 @@ const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
                     </Card>
                 </div>
                 <Button onClick={completeLevel} className="mt-8 px-6">
-                    Continue Athar
+                    {level.completionContent.reviewActionLabel}
                 </Button>
             </Card>
         </Overlay>
@@ -121,15 +131,29 @@ const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
 
 export const GameLevelRoute = () => {
     const loaderData = useLoaderData();
-    const { level } = useMemo(() => parseGameLevelLoaderData(loaderData), [loaderData]);
+    const { level, runtimeOverrides } = parseGameLevelLoaderData(loaderData);
     const [mapResetKey, setMapResetKey] = useState(0);
+    const [sessionResetKey, setSessionResetKey] = useState(0);
     const [runtimeIssue, setRuntimeIssue] = useState<MapRuntimeIssue | null>(null);
     const unlockedLevels = useGameStore((state) => state.unlockedLevels);
+    const paused = useGameplaySessionStore((state) => state.paused);
+    const isComplete = useLevelStore((state) => state.isComplete);
     const hasAccess = unlockedLevels.includes(level.order);
-    const handleRetry = useCallback(() => {
+    const handleRetry = () => {
         setRuntimeIssue(null);
         setMapResetKey((value) => value + 1);
-    }, []);
+    };
+    const handlePauseToggle = () => {
+        useGameplaySessionStore.getState().togglePause();
+    };
+    const handleRestartChapter = () => {
+        clearInputState();
+        resetGameplaySessionStore();
+        initializeChapterSession(level);
+        setRuntimeIssue(null);
+        setMapResetKey(0);
+        setSessionResetKey((value) => value + 1);
+    };
 
     useAtharDevTools(level.id);
 
@@ -138,9 +162,7 @@ export const GameLevelRoute = () => {
             return;
         }
 
-        useGameStore.getState().startLevel(level.order);
-        usePlayerStore.getState().initializePlayer(level.milestones[0]?.coords ?? level.origin, level.origin);
-        useLevelStore.getState().initializeLevel(level);
+        initializeChapterSession(level);
         audioManager.setAmbient(level.ambientCue);
         const warmupTimerId = window.setTimeout(() => {
             audioManager.warmup();
@@ -150,12 +172,23 @@ export const GameLevelRoute = () => {
             window.clearTimeout(warmupTimerId);
             audioManager.disposeAll();
         };
-    }, [hasAccess, level]);
+    }, [hasAccess, level.id]);
 
     useEffect(() => {
+        clearInputState();
+        resetGameplaySessionStore();
         setRuntimeIssue(null);
         setMapResetKey(0);
+        setSessionResetKey(0);
     }, [level.id]);
+
+    useEffect(
+        () => () => {
+            clearInputState();
+            resetGameplaySessionStore();
+        },
+        [],
+    );
 
     if (!hasAccess) {
         return <LockedLevelView />;
@@ -165,13 +198,15 @@ export const GameLevelRoute = () => {
         return <PreviewLevelView subtitle={level.subtitle} teaser={level.teaser} />;
     }
 
+    const mapInstanceKey = `${level.id}:${sessionResetKey}:${mapResetKey}`;
+
     return (
         <main className="relative h-screen w-screen overflow-hidden bg-ink-950">
-            <MapRuntimeBoundary resetKey={`${level.id}:${mapResetKey}`} onRetry={handleRetry}>
-                <MapScene key={`${level.id}:${mapResetKey}`} level={level} onRuntimeIssueChange={setRuntimeIssue}>
+            <MapRuntimeBoundary resetKey={mapInstanceKey} onRetry={handleRetry}>
+                <MapScene key={mapInstanceKey} level={level} onRuntimeIssueChange={setRuntimeIssue}>
                     <PlayerController />
                     <PresentationRuntime origin={level.origin} />
-                    <GameLoop />
+                    <GameLoop movementSpeedMultiplier={runtimeOverrides.movementSpeedMultiplier} />
                     <LevelMap level={level} />
                 </MapScene>
             </MapRuntimeBoundary>
@@ -189,7 +224,21 @@ export const GameLevelRoute = () => {
                 >
                     Exit Athar
                 </Link>
+                {!isComplete ? (
+                    <Button
+                        className="pointer-events-auto bg-ink-950/92 text-sm"
+                        onClick={handlePauseToggle}
+                        size="sm"
+                        variant="secondary"
+                    >
+                        {paused ? 'Resume Journey' : 'Pause Journey'}
+                    </Button>
+                ) : null}
             </div>
+
+            {paused && !runtimeIssue?.blocking && !isComplete ? (
+                <GameplayPauseOverlay onRestart={handleRestartChapter} onResume={handlePauseToggle} />
+            ) : null}
 
             {runtimeIssue?.blocking ? (
                 <Overlay>

@@ -1,9 +1,14 @@
+import { createLevelCompletionContent } from '@/content/levels/completion-content';
 import type { LevelConfig } from '@/content/levels/types';
 import { getTeacherProfile } from '@/content/scholars/scholar-profiles';
 import { MAP_STYLES } from '@/features/map/lib/map-style';
 
 export const level5: LevelConfig = {
     ambientCue: 'ambient-city',
+    completionContent: createLevelCompletionContent({
+        eyebrow: 'Compilation Complete',
+        nextChapterTitle: 'Legacy of the Journey',
+    }),
     completionNarration: 'Planned phase placeholder.',
     hadithTokenClusters: [],
     historicalNote: 'Future phase placeholder.',

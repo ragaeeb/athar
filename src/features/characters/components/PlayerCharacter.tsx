@@ -1,19 +1,23 @@
 import { useAnimations, useGLTF } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
-import { FrontSide, LoopRepeat, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { useEffect, useRef } from 'react';
+import { FrontSide, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHARACTER_CONFIGS, PLAYER_MODEL_PATH } from '@/content/characters/characters';
+import {
+    filterValidAnimationClips,
+    resolveActiveCharacterAnimationName,
+    resolveCharacterAnimationNames,
+    syncCharacterAnimationState,
+} from '@/features/characters/components/player-animation-utils';
 import { atharDebugLog } from '@/features/debug/debug';
-import { usePlayerRuntimeSpeed } from '@/features/gameplay/runtime/player-runtime';
+import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { FEATURE_FLAGS, PLAYER_VISUAL_SCALE } from '@/shared/constants/gameplay';
 
 type CharacterModelProps = {
     modelPath: string;
-    speed: number;
 };
-
-const animationNameMatches = (name: string, patterns: RegExp[]) => patterns.some((pattern) => pattern.test(name));
 
 const normalizeStandardMaterial = (material: MeshStandardMaterial) => {
     if (material.map) {
@@ -51,33 +55,15 @@ const prepareCharacterSceneNode = (child: unknown) => {
     }
 };
 
-const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
+const CharacterModel = ({ modelPath }: CharacterModelProps) => {
     const gltf = useGLTF(modelPath);
-    const validAnimations = useMemo(
-        () => gltf.animations.filter((clip) => clip.duration > 0.05 && clip.tracks.length > 0),
-        [gltf.animations],
-    );
-    const scene = useMemo(() => {
-        const clonedScene = clone(gltf.scene);
-        clonedScene.traverse(prepareCharacterSceneNode);
-
-        return clonedScene;
-    }, [gltf.scene]);
+    const validAnimations = filterValidAnimationClips(gltf.animations);
+    const scene = clone(gltf.scene);
+    scene.traverse(prepareCharacterSceneNode);
     const { actions } = useAnimations(validAnimations, scene);
-    const animationNames = useMemo(() => validAnimations.map((clip) => clip.name), [validAnimations]);
-    const fallbackAnimation = animationNames[0] ?? null;
-    const locomotionAnimation = useMemo(
-        () =>
-            animationNames.find((name) =>
-                animationNameMatches(name, [/walk/i, /run/i, /jog/i, /locomot/i, /mixamo/i]),
-            ) ?? fallbackAnimation,
-        [animationNames, fallbackAnimation],
-    );
-    const idleAnimation = useMemo(
-        () => animationNames.find((name) => animationNameMatches(name, [/idle/i, /stand/i])) ?? null,
-        [animationNames],
-    );
-    const activeAnimationName = speed > 0 ? locomotionAnimation : idleAnimation;
+    const { animationNames, idleAnimation, locomotionAnimation } = resolveCharacterAnimationNames(validAnimations);
+    const activeAnimationNameRef = useRef<string | null>(null);
+    const lastLoggedSpeedRef = useRef<number | null>(null);
 
     useEffect(() => {
         atharDebugLog('player', 'model-loaded', {
@@ -91,61 +77,67 @@ const CharacterModel = ({ modelPath, speed }: CharacterModelProps) => {
     }, [modelPath, validAnimations]);
 
     useEffect(() => {
-        atharDebugLog(
-            'player',
-            'animation-selection',
-            {
-                actionNames: Object.keys(actions),
-                activeAnimationName,
-                idleAnimation,
-                locomotionAnimation,
-                speed,
-            },
-            { throttleMs: 120 },
-        );
-    }, [actions, activeAnimationName, idleAnimation, locomotionAnimation, speed]);
+        activeAnimationNameRef.current = null;
 
-    useEffect(() => {
-        for (const action of Object.values(actions)) {
-            action?.stop();
-        }
-
-        if (!activeAnimationName) {
-            return;
-        }
-
-        const activeAction = actions[activeAnimationName];
-        if (!activeAction) {
-            return;
-        }
-
-        activeAction.reset();
-        activeAction.setLoop(LoopRepeat, Infinity);
-        activeAction.setEffectiveTimeScale(1);
-        activeAction.fadeIn(0.2).play();
         return () => {
-            activeAction.fadeOut(0.2);
+            for (const action of Object.values(actions)) {
+                action?.stop();
+            }
         };
-    }, [actions, activeAnimationName]);
+    }, [actions]);
 
-    useEffect(() => {
-        atharDebugLog(
-            'player',
-            'animation-state',
-            {
-                activeAnimationName,
-                speed,
-            },
-            { throttleMs: 120 },
-        );
-    }, [activeAnimationName, speed]);
+    useFrame(() => {
+        const speed = getPlayerRuntimeState().speed;
+        const nextAnimationName = resolveActiveCharacterAnimationName({
+            idleAnimation,
+            locomotionAnimation,
+            speed,
+        });
+        const previousAnimationName = activeAnimationNameRef.current;
+
+        if (nextAnimationName !== previousAnimationName || speed !== lastLoggedSpeedRef.current) {
+            atharDebugLog(
+                'player',
+                'animation-selection',
+                {
+                    actionNames: Object.keys(actions),
+                    activeAnimationName: nextAnimationName,
+                    animationNames,
+                    idleAnimation,
+                    locomotionAnimation,
+                    speed,
+                },
+                { throttleMs: 120 },
+            );
+        }
+
+        const activeAnimationName = syncCharacterAnimationState({
+            actions,
+            nextAnimationName,
+            previousAnimationName,
+        });
+
+        if (activeAnimationName !== previousAnimationName || speed !== lastLoggedSpeedRef.current) {
+            atharDebugLog(
+                'player',
+                'animation-state',
+                {
+                    activeAnimationName,
+                    speed,
+                },
+                { throttleMs: 120 },
+            );
+        }
+
+        activeAnimationNameRef.current = activeAnimationName;
+        lastLoggedSpeedRef.current = speed;
+    });
 
     return <primitive object={scene} scale={1.55} position={[0, -1.3, 0]} rotation={[0, 0, 0]} />;
 };
 
 export const PlayerCharacter = () => {
     const selectedCharacter = useGameStore((state) => state.selectedCharacter);
-    const speed = usePlayerRuntimeSpeed();
     const config = CHARACTER_CONFIGS[selectedCharacter];
 
     useEffect(() => {
@@ -165,7 +157,7 @@ export const PlayerCharacter = () => {
                 <>
                     <hemisphereLight intensity={2.8} groundColor="#9a8c74" color="#ffffff" />
                     <pointLight color="#fff5dc" intensity={36} distance={18} position={[0, 3.2, 2.1]} />
-                    <CharacterModel modelPath={config.modelPath} speed={speed} />
+                    <CharacterModel modelPath={config.modelPath} />
                 </>
             ) : (
                 <>

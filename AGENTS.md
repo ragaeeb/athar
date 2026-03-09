@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Athar is a web-based 3D educational map game about hadith journeys. The repo currently contains a desktop-first vertical slice with one playable chapter and the supporting architecture that future chapters will build on.
+Athar is a web-based 3D educational map game about hadith journeys. The repo currently contains a desktop-first vertical slice with two playable chapters and the supporting architecture that future chapters will build on.
 
 This file is an onboarding reference for new AI agents working in the repo. It should stay concise and current.
 
@@ -98,11 +98,11 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 
 ## Current Product Reality
 
-- Level 1 is the only truly playable chapter.
-- Levels 2–5 are scaffold data, not finished chapters.
-- Teacher/hadith content outside the first slice is still placeholder-heavy.
-- Mobile controls, richer audio, and advanced city/world rendering are not done yet.
-- `public/audio/**` currently contains placeholders only; the app now disables audio at startup when the configured files are missing.
+- Levels 1 and 2 are playable chapters on the current architecture.
+- Levels 3–5 are scaffold data, not finished chapters.
+- Teacher dialogue in later chapters is authored paraphrase and still needs deeper domain review.
+- Mobile controls and advanced city/world rendering are not done yet.
+- `public/audio/**` now contains a minimal checked-in placeholder cue pack, so the audio system should bootstrap in normal repo state.
 
 ## Architecture Rules
 
@@ -112,12 +112,17 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 - Do not keep hot gameplay Zustand subscriptions in route-level components above `MapScene` / `GameLoop` / `LevelMap`; subscribe in leaf HUD/overlay components instead.
 - Prefer systems / batched runtime logic over per-entity React logic for dirty-flagged or cross-entity behavior.
 - Treat content/config validation as part of the runtime contract, not optional polish.
+- React Compiler is enabled. Do not add `useMemo` or `useCallback` by default.
+- If you believe a manual memoization escape hatch is still necessary, treat it as an exception that requires explicit justification in code review.
 
 ## Debugging
 
 Debug logging is opt-in through [src/features/debug/debug.ts](src/features/debug/debug.ts).
 
 - URL: `?atharDebug=1`
+- Route test overrides:
+  - `?atharCompactRoute=1`
+  - `?atharWalkSpeed=4`
 - Console:
   - `window.__atharDebug__?.enable()`
   - `window.__atharDebug__?.disable()`

@@ -21,6 +21,15 @@ const lightingSchema = z.object({
     minute: z.number().int().min(0).max(59),
 });
 
+const completionContentSchema = z.object({
+    eyebrow: z.string().min(1),
+    historicalNoteTitle: z.string().min(1),
+    homeActionLabel: z.string().min(1),
+    nextChapterActionLabel: z.string().min(1),
+    nextChapterTitle: z.string().min(1),
+    reviewActionLabel: z.string().min(1),
+});
+
 const teacherSchema = z.object({
     city: z.string().min(1),
     coords: coordsSchema,
@@ -78,6 +87,7 @@ const audioCueSchema = z.enum(
 export const levelConfigSchema = z
     .object({
         ambientCue: audioCueSchema,
+        completionContent: completionContentSchema,
         completionNarration: z.string().min(1),
         hadithTokenClusters: z.array(tokenClusterSchema),
         historicalNote: z.string().min(1),

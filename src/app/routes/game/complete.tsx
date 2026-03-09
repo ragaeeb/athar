@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 
+import { DEFAULT_LEVEL_COMPLETION_CONTENT } from '@/content/levels/completion-content';
 import { getLevelById } from '@/content/levels/registry';
 import { useGameStore } from '@/features/gameplay/state/game.store';
+import { getButtonClassName } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 
 export const LevelCompleteRoute = () => {
@@ -29,23 +31,26 @@ export const LevelCompleteRoute = () => {
     }
 
     const completedLevel = getLevelById(summary.levelId);
+    const completionContent = completedLevel?.completionContent ?? DEFAULT_LEVEL_COMPLETION_CONTENT;
     const nextLevel = completedLevel
         ? unlockedLevels
               .map((order) => getLevelById(`level-${order}`))
-              .find((level) => level?.order === completedLevel.order + 1 && level.playable)
+              .find((level) => level?.order === completedLevel.order + 1)
         : undefined;
 
     return (
         <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(233,196,106,0.18),transparent_28%),radial-gradient(circle_at_bottom,rgba(31,157,149,0.2),transparent_30%)]" />
             <Card tone="reward" className="relative w-full max-w-4xl rounded-[2.5rem] p-8 lg:p-10">
-                <p className="font-display text-sm uppercase tracking-[0.5em] text-gold-400">Chapter Complete</p>
+                <p className="font-display text-sm uppercase tracking-[0.5em] text-gold-400">
+                    {completionContent.eyebrow}
+                </p>
                 <h1 className="mt-4 font-display text-4xl text-sand-50 lg:text-5xl">{summary.levelSubtitle}</h1>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-sand-100/75">{summary.completionNarration}</p>
 
                 <div className="mt-8 grid gap-4 md:grid-cols-4">
                     <Card tone="muted" className="rounded-[1.5rem] p-5">
-                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Verified Hadith</p>
+                        <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Chapter Verified</p>
                         <p className="mt-2 font-mono text-3xl text-gold-400">{summary.verifiedHadith}</p>
                     </Card>
                     <Card tone="muted" className="rounded-[1.5rem] p-5">
@@ -63,21 +68,37 @@ export const LevelCompleteRoute = () => {
                 </div>
 
                 <Card tone="muted" className="mt-8 rounded-[1.75rem] p-6">
-                    <p className="font-display text-lg text-sand-50">Historical Note</p>
+                    <p className="font-display text-lg text-sand-50">{completionContent.historicalNoteTitle}</p>
                     <p className="mt-3 text-base leading-7 text-sand-100/75">{summary.historicalNote}</p>
                 </Card>
 
+                {nextLevel ? (
+                    <Card tone="muted" className="mt-6 rounded-[1.75rem] p-6">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="max-w-2xl">
+                                <p className="font-display text-lg text-sand-50">
+                                    {completionContent.nextChapterTitle}
+                                </p>
+                                <h2 className="mt-3 font-display text-3xl text-sand-50">{nextLevel.subtitle}</h2>
+                                <p className="mt-3 text-base leading-7 text-sand-100/75">{nextLevel.teaser}</p>
+                            </div>
+                            {!nextLevel.playable ? (
+                                <span className="rounded-full border border-gold-400/25 bg-gold-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-gold-300">
+                                    Coming Soon
+                                </span>
+                            ) : null}
+                        </div>
+                    </Card>
+                ) : null}
+
                 <div className="mt-8 flex flex-wrap gap-3">
-                    {nextLevel ? (
-                        <Link
-                            to={`/game/${nextLevel.id}`}
-                            className="rounded-full bg-gold-400 px-6 py-3 font-semibold text-ink-950"
-                        >
-                            Continue Athar
+                    {nextLevel?.playable ? (
+                        <Link to={`/game/${nextLevel.id}`} className={getButtonClassName({})}>
+                            {completionContent.nextChapterActionLabel}
                         </Link>
                     ) : null}
-                    <Link to="/" className="rounded-full border border-white/15 px-6 py-3 text-sand-50">
-                        Return Home
+                    <Link to="/" className={getButtonClassName({ variant: 'secondary' })}>
+                        {completionContent.homeActionLabel}
                     </Link>
                 </div>
             </Card>

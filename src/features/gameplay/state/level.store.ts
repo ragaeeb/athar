@@ -1,41 +1,12 @@
 import { create } from 'zustand';
 import type { LevelConfig, NextObjective, ObjectiveStatus, TokenState } from '@/content/levels/types';
+import { buildObjectiveStatuses, getChapterHadithTotal } from '@/features/gameplay/objectives';
 import type { SimulationLevelState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import { generateClusterTokens } from '@/shared/geo';
 
-const buildObjectives = (
-    config: LevelConfig,
-    completedTeacherIds: string[],
-    completedMilestoneIds: string[],
-    lockedHadith: number,
-): ObjectiveStatus[] => [
-    {
-        completed: lockedHadith >= config.winCondition.requiredHadith,
-        detail: `${lockedHadith}/${config.winCondition.requiredHadith} preserved`,
-        id: `${config.id}-hadith`,
-        kind: 'hadith',
-        label: `Verify ${config.winCondition.requiredHadith} hadith`,
-    },
-    ...config.winCondition.requiredTeachers.map((teacherId) => {
-        const teacher = config.teachers.find((entry) => entry.id === teacherId);
-        return {
-            completed: completedTeacherIds.includes(teacherId),
-            detail: teacher ? `Meet ${teacher.name} in ${teacher.city}` : 'Teacher encounter',
-            id: teacherId,
-            kind: 'teacher' as const,
-            label: teacher?.name ?? teacherId,
-        };
-    }),
-    {
-        completed: completedMilestoneIds.includes(config.winCondition.finalMilestone),
-        detail: 'Reach the final milestone to complete the leg.',
-        id: config.winCondition.finalMilestone,
-        kind: 'milestone',
-        label:
-            config.milestones.find((milestone) => milestone.id === config.winCondition.finalMilestone)?.label ??
-            'Final milestone',
-    },
-];
+const getCurrentChapterHadithTotal = (lockedHadith: number) =>
+    getChapterHadithTotal(lockedHadith, usePlayerStore.getState().hadithTokens);
 
 export type LevelState = {
     config: LevelConfig | null;
@@ -228,11 +199,11 @@ export const useLevelStore = create<LevelState>()((set) => ({
             const lockedHadith = state.lockedHadith + count;
             return {
                 lockedHadith,
-                objectives: buildObjectives(
+                objectives: buildObjectiveStatuses(
                     state.config,
                     state.completedTeacherIds,
                     state.completedMilestoneIds,
-                    lockedHadith,
+                    getCurrentChapterHadithTotal(lockedHadith),
                 ),
             };
         }),
@@ -267,11 +238,11 @@ export const useLevelStore = create<LevelState>()((set) => ({
             const completedMilestoneIds = [...state.completedMilestoneIds, milestoneId];
             return {
                 completedMilestoneIds,
-                objectives: buildObjectives(
+                objectives: buildObjectiveStatuses(
                     state.config,
                     state.completedTeacherIds,
                     completedMilestoneIds,
-                    state.lockedHadith,
+                    getCurrentChapterHadithTotal(state.lockedHadith),
                 ),
             };
         }),
@@ -284,11 +255,11 @@ export const useLevelStore = create<LevelState>()((set) => ({
             const completedTeacherIds = [...state.completedTeacherIds, teacherId];
             return {
                 completedTeacherIds,
-                objectives: buildObjectives(
+                objectives: buildObjectiveStatuses(
                     state.config,
                     completedTeacherIds,
                     state.completedMilestoneIds,
-                    state.lockedHadith,
+                    getCurrentChapterHadithTotal(state.lockedHadith),
                 ),
             };
         }),
@@ -300,7 +271,12 @@ export const useLevelStore = create<LevelState>()((set) => ({
             isComplete: false,
             lockedHadith: 0,
             nextObjective: null,
-            objectives: buildObjectives(config, [], [config.milestones[0]?.id].filter(Boolean) as string[], 0),
+            objectives: buildObjectiveStatuses(
+                config,
+                [],
+                [config.milestones[0]?.id].filter(Boolean) as string[],
+                getCurrentChapterHadithTotal(0),
+            ),
             tokens: generateClusterTokens(config.hadithTokenClusters),
         }),
     pruneExpiredTokens: (now) =>

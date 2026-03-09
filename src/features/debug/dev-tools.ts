@@ -229,7 +229,6 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                 useLevelStore.getState().completeTeacher(level.winCondition.requiredTeachers[0] ?? '');
                 useLevelStore.getState().completeMilestone(level.winCondition.finalMilestone);
                 useLevelStore.getState().addLockedHadith(level.winCondition.requiredHadith);
-                useGameStore.getState().addVerifiedHadith(level.winCondition.requiredHadith);
                 useLevelStore.getState().setComplete(true);
             },
             getLastPerfSnapshot: () => getPerfSnapshot(),
@@ -293,7 +292,13 @@ export const useAtharDevTools = (levelId: string | undefined) => {
             },
             teleportToTeacher: () => {
                 const level = getLevelById(levelId);
-                const teacher = level?.teachers[0];
+                if (!level) {
+                    return;
+                }
+
+                const teacher = level.teachers.find(
+                    (entry) => !useLevelStore.getState().completedTeacherIds.includes(entry.id),
+                );
                 if (!teacher) {
                     return;
                 }

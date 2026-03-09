@@ -275,6 +275,7 @@ export const HUD = ({ level }: HUDProps) => {
                         <Card tone="muted" className="rounded-2xl p-4">
                             <p className="font-mono text-xs uppercase tracking-[0.3em] text-sand-100/60">Controls</p>
                             <p className="mt-2 text-sm text-sand-100/85">Move with `WASD` or arrow keys.</p>
+                            <p className="mt-2 text-sm text-sand-100/75">Pause or resume with `Escape`.</p>
                         </Card>
                     </div>
                 </DrawerPanel>

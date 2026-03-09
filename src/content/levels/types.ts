@@ -68,6 +68,15 @@ export type LightingConfig = {
     label: string;
 };
 
+export type LevelCompletionContent = {
+    eyebrow: string;
+    historicalNoteTitle: string;
+    homeActionLabel: string;
+    nextChapterActionLabel: string;
+    nextChapterTitle: string;
+    reviewActionLabel: string;
+};
+
 export type LevelConfig = {
     id: string;
     order: number;
@@ -93,6 +102,7 @@ export type LevelConfig = {
     lighting: LightingConfig;
     winCondition: WinCondition;
     completionNarration: string;
+    completionContent: LevelCompletionContent;
     historicalNote: string;
     ambientCue: 'ambient-desert' | 'ambient-city';
 };

@@ -4,10 +4,12 @@ export type TeacherProfile = Omit<TeacherConfig, 'coords'>;
 
 export const TEACHER_PROFILES = {
     'abdullah-ibn-yusuf': {
-        city: 'Madinah',
-        hadith: 'Placeholder teaching excerpt: a sound report depends on reliability, memory, and trustworthiness.',
-        hadithSource: 'Placeholder source note for development build',
-        historicalNote: 'This character is present in future level data and currently serves as scaffold content.',
+        city: 'Damascus',
+        hadith: 'Athar teaching paraphrase: the chain is protected by trustworthy transmitters, careful memory, and disciplined review.',
+        hadithSource:
+            'Athar authored teaching paraphrase inspired by transmitter-discipline themes associated with Abdullah ibn Yusuf.',
+        historicalNote:
+            'Abdullah ibn Yusuf al-Tinnisi appears in transmission chains used by al-Bukhari and is associated in the biographical tradition with Damascus.',
         id: 'abdullah-ibn-yusuf',
         name: 'Abdullah ibn Yusuf',
         title: 'Transmitter of Damascus',
@@ -34,19 +36,22 @@ export const TEACHER_PROFILES = {
     },
     'ali-ibn-al-madini': {
         city: 'Madinah',
-        hadith: 'Placeholder teaching excerpt: knowledge becomes firm through careful transmission and honest attribution.',
-        hadithSource: 'Placeholder source note for development build',
+        hadith: 'Athar teaching paraphrase: the strongest collector tests narrators closely and refuses to let subtle defects pass unnoticed.',
+        hadithSource:
+            'Athar authored teaching paraphrase inspired by narrator-criticism themes associated with Ali ibn al-Madini.',
         historicalNote:
-            'Ali ibn al-Madini is included as a future-level teacher and helps shape the wider scholarly chain.',
+            'Ali ibn al-Madini is widely remembered for rigorous narrator criticism and for shaping later hadith evaluation through his teaching and example.',
         id: 'ali-ibn-al-madini',
         name: 'Ali ibn al-Madini',
         title: 'Critical Hadith Scholar',
     },
     'ibn-abi-uways': {
         city: 'Makkah',
-        hadith: 'Placeholder teaching excerpt: perseverance in study opens roads that seem closed to the impatient.',
-        hadithSource: 'Placeholder source note for development build',
-        historicalNote: 'This teacher supports the later Hijaz route once the next levels are expanded.',
+        hadith: 'Athar teaching paraphrase: endurance in study matters because reliable knowledge is gathered in stages, not in a single sitting.',
+        hadithSource:
+            'Athar authored teaching paraphrase inspired by long-form study and transmission themes associated with Ibn Abi Uways.',
+        historicalNote:
+            'Ibn Abi Uways appears in later hadith transmission networks and is used here as a general teaching figure tied to patient study and careful preservation.',
         id: 'ibn-abi-uways',
         name: 'Ibn Abi Uways',
         title: 'Teacher of the Hijaz',
@@ -65,7 +70,7 @@ export const TEACHER_PROFILES = {
         hadith: 'Placeholder teaching excerpt: sincere intention gives a journey its meaning and transforms travel into worship.',
         hadithSource: 'Placeholder source note for development build',
         historicalNote:
-            'Makki ibn Ibrahim represents the first major transmitter in this route and anchors the opening scholarly encounter.',
+            'Makki ibn Ibrahim is associated with Balkh in the biographical tradition and appears in early transmission networks linked to al-Bukhari.',
         id: 'makki-ibn-ibrahim',
         name: 'Makki ibn Ibrahim',
         title: 'Master of Balkh',

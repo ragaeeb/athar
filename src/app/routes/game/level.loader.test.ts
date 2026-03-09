@@ -1,14 +1,16 @@
 import type { LoaderFunctionArgs } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { gameLevelLoader } from '@/app/routes/game/level.loader';
+import { gameLevelLoader, parseGameLevelLoaderData } from '@/app/routes/game/level.loader';
+import { level1 } from '@/content/levels/level-1/config';
 import * as levelRegistry from '@/content/levels/registry';
+import { worldDistanceInMeters } from '@/shared/geo';
 
-const createLoaderArgs = (levelId?: string): LoaderFunctionArgs =>
+const createLoaderArgs = (levelId?: string, search = ''): LoaderFunctionArgs =>
     ({
         context: undefined,
         params: levelId ? { levelId } : {},
-        request: new Request(`https://athar.test/game/${levelId ?? ''}`),
+        request: new Request(`https://athar.test/game/${levelId ?? ''}${search}`),
     }) as LoaderFunctionArgs;
 
 const captureLoaderError = (args: LoaderFunctionArgs) => {
@@ -31,6 +33,62 @@ describe('gameLevelLoader', () => {
 
         expect(result.level.id).toBe('level-1');
         expect(result.level.playable).toBe(true);
+        expect(result.runtimeOverrides.movementSpeedMultiplier).toBe(1);
+    });
+
+    it('supports a compact-route query variant for fast milestone testing', () => {
+        const result = gameLevelLoader(createLoaderArgs('level-1', '?atharCompactRoute=1'));
+        const defaultFinalMilestone = level1.milestones.find(
+            (milestone) => milestone.id === level1.winCondition.finalMilestone,
+        );
+        const compactFinalMilestone = result.level.milestones.find(
+            (milestone) => milestone.id === result.level.winCondition.finalMilestone,
+        );
+
+        expect(compactFinalMilestone).toBeDefined();
+        expect(defaultFinalMilestone).toBeDefined();
+        expect(result.level.initialView.zoom).toBeGreaterThan(level1.initialView.zoom);
+        expect(
+            worldDistanceInMeters(compactFinalMilestone?.coords ?? result.level.origin, result.level.origin),
+        ).toBeLessThan(worldDistanceInMeters(defaultFinalMilestone?.coords ?? level1.origin, level1.origin));
+    });
+
+    it('supports a walk-speed query override for quick traversal testing', () => {
+        const result = gameLevelLoader(createLoaderArgs('level-1', '?atharWalkSpeed=4.5'));
+
+        expect(result.runtimeOverrides.movementSpeedMultiplier).toBe(4.5);
+    });
+
+    it('clamps invalid or extreme walk-speed query overrides safely', () => {
+        expect(gameLevelLoader(createLoaderArgs('level-1', '?atharWalkSpeed=fast')).runtimeOverrides).toEqual({
+            movementSpeedMultiplier: 1,
+        });
+        expect(gameLevelLoader(createLoaderArgs('level-1', '?atharWalkSpeed=-2')).runtimeOverrides).toEqual({
+            movementSpeedMultiplier: 0.1,
+        });
+        expect(gameLevelLoader(createLoaderArgs('level-1', '?atharWalkSpeed=999')).runtimeOverrides).toEqual({
+            movementSpeedMultiplier: 20,
+        });
+    });
+
+    it('rejects malformed runtime overrides in loader data instead of silently defaulting them', () => {
+        expect(() =>
+            parseGameLevelLoaderData({
+                level: level1,
+                runtimeOverrides: {
+                    movementSpeedMultiplier: 'fast',
+                },
+            }),
+        ).toThrow('Invalid game level runtime overrides.');
+
+        expect(() =>
+            parseGameLevelLoaderData({
+                level: level1,
+                runtimeOverrides: {
+                    movementSpeedMultiplier: 0.05,
+                },
+            }),
+        ).toThrow('Invalid game level runtime overrides.');
     });
 
     it('throws a 400 response when the route param is missing', async () => {
