@@ -1,11 +1,13 @@
 import { expect, type Page, test } from '@playwright/test';
 
 const clickDialogueAction = async (page: Page) => {
+    const dialogue = page.getByRole('dialog');
     const receiveHadithButton = page.getByRole('button', { name: /receive hadith/i });
+    await expect(dialogue).toBeVisible();
     await expect(receiveHadithButton).toBeVisible();
     await expect(receiveHadithButton).toBeEnabled();
     await receiveHadithButton.click({ force: true });
-    await expect(receiveHadithButton).toHaveCount(0);
+    await expect(dialogue).toBeHidden();
 };
 
 test('completes the deterministic level one and level two smoke path', async ({ page }) => {
