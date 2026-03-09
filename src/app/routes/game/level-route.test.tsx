@@ -89,18 +89,20 @@ describe('GameLevelRoute', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /pause journey/i }));
 
-        expect(await screen.findByText(/journey paused/i)).toBeInTheDocument();
+        await waitFor(() => {
+            expect(useGameplaySessionStore.getState().paused).toBe(true);
+        });
+        expect((await screen.findAllByRole('button', { name: /resume journey/i })).at(-1)).toBeInTheDocument();
         expect(screen.getByText('5')).toBeInTheDocument();
         expect(screen.getByText('Makki ibn Ibrahim')).toBeInTheDocument();
-        expect(useGameplaySessionStore.getState().paused).toBe(true);
 
         const resumeButtons = await screen.findAllByRole('button', { name: /resume journey/i });
         fireEvent.click(resumeButtons.at(-1)!);
 
         await waitFor(() => {
-            expect(screen.queryByText(/journey paused/i)).not.toBeInTheDocument();
+            expect(useGameplaySessionStore.getState().paused).toBe(false);
         });
-        expect(useGameplaySessionStore.getState().paused).toBe(false);
+        expect(screen.queryByRole('button', { name: /resume journey/i })).not.toBeInTheDocument();
     });
 
     it('restarts the chapter from a clean session state', async () => {
