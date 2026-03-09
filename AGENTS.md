@@ -120,6 +120,9 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 Debug logging is opt-in through [src/features/debug/debug.ts](src/features/debug/debug.ts).
 
 - URL: `?atharDebug=1`
+- Route test overrides:
+  - `?atharCompactRoute=1`
+  - `?atharWalkSpeed=4`
 - Console:
   - `window.__atharDebug__?.enable()`
   - `window.__atharDebug__?.disable()`

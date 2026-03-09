@@ -54,6 +54,7 @@ const renderRoute = () => {
         [
             {
                 element: <GameLevelRoute />,
+                HydrateFallback: () => null,
                 loader: () => ({ level: level1 }),
                 path: '/game/level-1',
             },

@@ -20,7 +20,7 @@ import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import { useGameplaySessionStore } from '@/features/gameplay/state/session.store';
-import { getSimulationCharacterModifiers } from '@/features/gameplay/systems/game-loop-runtime';
+import { advanceSimulationNowMs, getSimulationCharacterModifiers } from '@/features/gameplay/systems/game-loop-runtime';
 
 const PLAYER_ENTITY_ID = 'player';
 const GAME_LOOP_SPIKE_THRESHOLD_MS = 25;
@@ -60,7 +60,7 @@ const readSimulationLevelState = (): SimulationLevelState => {
     };
 };
 
-const readSimulationState = (movementSpeedMultiplier: number): SimulationState | null => {
+const readSimulationState = (movementSpeedMultiplier: number, nowMs: number): SimulationState | null => {
     const levelState = useLevelStore.getState();
     if (!levelState.config) {
         return null;
@@ -73,7 +73,7 @@ const readSimulationState = (movementSpeedMultiplier: number): SimulationState |
         character: getSimulationCharacterModifiers(characterConfig, movementSpeedMultiplier),
         level: levelState.config,
         levelState: readSimulationLevelState(),
-        nowMs: Date.now(),
+        nowMs,
         player: readSimulationPlayerState(),
     };
 };
@@ -106,10 +106,13 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
     const paused = useGameplaySessionStore((state) => state.paused);
     const runnerRef = useRef<SimulationRunner>(createSimulationRunner({ variableTimestep: true }));
     const lastFrameAtMsRef = useRef(performance.now());
+    const simulationNowMsRef = useRef(Date.now());
 
     useEffect(() => {
-        runnerRef.current.reset(Date.now());
+        const initialNowMs = Date.now();
+        runnerRef.current.reset(initialNowMs);
         lastFrameAtMsRef.current = performance.now();
+        simulationNowMsRef.current = initialNowMs;
     }, [levelId]);
 
     useFrame(() => {
@@ -125,6 +128,7 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
         const nowMs = performance.now();
         const frameDeltaMs = Math.min(Math.max(nowMs - lastFrameAtMsRef.current, 0), 100);
         lastFrameAtMsRef.current = nowMs;
+        simulationNowMsRef.current = advanceSimulationNowMs(simulationNowMsRef.current, frameDeltaMs);
 
         recordFrameDeltaMs(frameDeltaMs);
         if (frameDeltaMs > GAME_LOOP_SPIKE_THRESHOLD_MS) {
@@ -145,7 +149,7 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
             );
         }
 
-        const state = readSimulationState(movementSpeedMultiplier);
+        const state = readSimulationState(movementSpeedMultiplier, simulationNowMsRef.current);
         if (!state || state.levelState.isComplete) {
             return;
         }

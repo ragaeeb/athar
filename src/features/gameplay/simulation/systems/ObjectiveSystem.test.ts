@@ -12,7 +12,7 @@ const createSimulationState = (overrides?: Partial<SimulationState>): Simulation
         speedMultiplier: CHARACTER_CONFIGS.bukhari.speedMultiplier,
         tokenRadiusMultiplier: CHARACTER_CONFIGS.bukhari.tokenRadiusMultiplier,
     },
-    level: level1,
+    level: overrides?.level ?? level1,
     levelState: {
         completedMilestoneIds: [level1.milestones[0]?.id].filter(Boolean) as string[],
         completedTeacherIds: [],
@@ -96,5 +96,37 @@ describe('ObjectiveSystem', () => {
             id: level1.winCondition.finalMilestone,
             label: 'Makkah Sanctuary',
         });
+    });
+
+    it('throws when a level references an unknown required teacher', () => {
+        const state = createSimulationState({
+            level: {
+                ...level1,
+                winCondition: {
+                    ...level1.winCondition,
+                    requiredTeachers: ['missing-teacher'],
+                },
+            },
+        });
+
+        expect(() => applyObjectiveSystem(state, state.levelState)).toThrow(
+            'Level "level-1" references unknown required teacher "missing-teacher"',
+        );
+    });
+
+    it('throws when a level references an unknown final milestone', () => {
+        const state = createSimulationState({
+            level: {
+                ...level1,
+                winCondition: {
+                    ...level1.winCondition,
+                    finalMilestone: 'missing-milestone',
+                },
+            },
+        });
+
+        expect(() => applyObjectiveSystem(state, state.levelState)).toThrow(
+            'Level "level-1" references unknown final milestone "missing-milestone"',
+        );
     });
 });

@@ -18,14 +18,13 @@ export const IndexRoute = () => {
 
     const selectedScholarName = CHARACTER_CONFIGS[selectedCharacter].name;
 
-    const onStartAthar = () => {
-        startLevel(1);
-        navigate('/game/level-1');
-    };
-
     const playChapter = (levelId: string, levelOrder: number) => {
         startLevel(levelOrder);
         navigate(`/game/${levelId}`);
+    };
+
+    const onStartAthar = () => {
+        playChapter('level-1', 1);
     };
 
     return (

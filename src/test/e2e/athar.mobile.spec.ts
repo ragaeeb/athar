@@ -11,6 +11,7 @@ test.use({
 
 test('loads level two and supports pause/resume on a mobile viewport smoke path', async ({ page }) => {
     await page.goto('/');
+    await page.getByRole('button', { name: /abu dawud al-sijistani/i }).click();
     await page.getByRole('button', { name: /begin level 1/i }).click();
     await expect(page).toHaveURL(/\/game\/level-1$/);
 

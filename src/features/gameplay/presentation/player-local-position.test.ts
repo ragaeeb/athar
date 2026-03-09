@@ -32,14 +32,16 @@ describe('coordsToPlayerLocalPosition', () => {
     });
 
     it('matches react-three-map at the far end of the level one route', () => {
-        const makkah = level1.milestones.find((milestone) => milestone.id === 'makkah-sanctuary');
-        expect(makkah).toBeDefined();
+        const finalMilestone = level1.milestones.find(
+            (milestone) => milestone.id === level1.winCondition.finalMilestone,
+        );
+        expect(finalMilestone).toBeDefined();
 
         const [expectedX, expectedY, expectedZ] = coordsToVector3(
-            { latitude: makkah!.coords.lat, longitude: makkah!.coords.lng },
+            { latitude: finalMilestone!.coords.lat, longitude: finalMilestone!.coords.lng },
             { latitude: level1.origin.lat, longitude: level1.origin.lng },
         );
-        const [actualX, actualY, actualZ] = coordsToPlayerLocalPosition(makkah!.coords, level1.origin);
+        const [actualX, actualY, actualZ] = coordsToPlayerLocalPosition(finalMilestone!.coords, level1.origin);
 
         expect(Math.abs(actualX - expectedX)).toBeLessThan(0.001);
         expect(actualY).toBe(expectedY);

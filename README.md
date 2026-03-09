@@ -88,6 +88,13 @@ bun run build
 - Runtime audio should stay enabled in normal repo state as long as those files remain present and readable.
 - If you replace the placeholders later, keep the same paths under `public/audio/**` so Howler can resolve them directly.
 
+## Runtime Test Overrides
+
+- `?atharCompactRoute=1`
+  Shrinks route spacing for faster milestone/objective smoke tests.
+- `?atharWalkSpeed=4`
+  Multiplies the current scholar walking speed for faster traversal testing.
+
 ## Current Limitations
 
 - Player speed is still intentionally compressed for gameplay pacing

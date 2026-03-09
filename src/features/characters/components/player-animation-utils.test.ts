@@ -1,9 +1,11 @@
-import type { AnimationClip } from 'three';
-import { describe, expect, it } from 'vitest';
+import { type AnimationAction, type AnimationClip, LoopRepeat } from 'three';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
     filterValidAnimationClips,
+    resolveActiveCharacterAnimationName,
     resolveCharacterAnimationNames,
+    syncCharacterAnimationState,
 } from '@/features/characters/components/player-animation-utils';
 
 const createClip = ({ duration, name, trackCount }: { duration: number; name: string; trackCount: number }) =>
@@ -51,5 +53,99 @@ describe('player-animation-utils', () => {
             idleAnimation: 'Stand',
             locomotionAnimation: 'Take 001',
         });
+    });
+
+    it('does not treat bare mixamo clip names as locomotion and falls back idle to the first valid clip', () => {
+        const animations = [
+            createClip({ duration: 1, name: 'Mixamo.com', trackCount: 12 }),
+            createClip({ duration: 1, name: 'Gesture', trackCount: 9 }),
+        ];
+
+        expect(resolveCharacterAnimationNames(animations)).toEqual({
+            animationNames: ['Mixamo.com', 'Gesture'],
+            fallbackAnimation: 'Mixamo.com',
+            idleAnimation: 'Mixamo.com',
+            locomotionAnimation: 'Mixamo.com',
+        });
+    });
+
+    it('resolves the active animation name from runtime speed without React state', () => {
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Idle Pose',
+                locomotionAnimation: 'Walk Forward',
+                speed: 0,
+            }),
+        ).toBe('Idle Pose');
+
+        expect(
+            resolveActiveCharacterAnimationName({
+                idleAnimation: 'Idle Pose',
+                locomotionAnimation: 'Walk Forward',
+                speed: 12,
+            }),
+        ).toBe('Walk Forward');
+    });
+
+    it('switches animation actions imperatively only when the target animation changes', () => {
+        const idleAction = {
+            fadeIn: vi.fn().mockReturnThis(),
+            fadeOut: vi.fn().mockReturnThis(),
+            play: vi.fn().mockReturnThis(),
+            reset: vi.fn().mockReturnThis(),
+            setEffectiveTimeScale: vi.fn().mockReturnThis(),
+            setLoop: vi.fn().mockReturnThis(),
+            stop: vi.fn().mockReturnThis(),
+        };
+        const walkAction = {
+            fadeIn: vi.fn().mockReturnThis(),
+            fadeOut: vi.fn().mockReturnThis(),
+            play: vi.fn().mockReturnThis(),
+            reset: vi.fn().mockReturnThis(),
+            setEffectiveTimeScale: vi.fn().mockReturnThis(),
+            setLoop: vi.fn().mockReturnThis(),
+            stop: vi.fn().mockReturnThis(),
+        };
+        const actions = {
+            'Idle Pose': idleAction,
+            'Walk Forward': walkAction,
+        } as unknown as Record<string, AnimationAction | null | undefined>;
+
+        expect(
+            syncCharacterAnimationState({
+                actions,
+                nextAnimationName: 'Walk Forward',
+                previousAnimationName: null,
+            }),
+        ).toBe('Walk Forward');
+
+        expect(walkAction.reset).toHaveBeenCalledTimes(1);
+        expect(walkAction.setLoop).toHaveBeenCalledWith(LoopRepeat, Infinity);
+        expect(walkAction.fadeIn).toHaveBeenCalledTimes(1);
+        expect(walkAction.play).toHaveBeenCalledTimes(1);
+
+        expect(
+            syncCharacterAnimationState({
+                actions,
+                nextAnimationName: 'Walk Forward',
+                previousAnimationName: 'Walk Forward',
+            }),
+        ).toBe('Walk Forward');
+
+        expect(walkAction.reset).toHaveBeenCalledTimes(1);
+
+        expect(
+            syncCharacterAnimationState({
+                actions,
+                nextAnimationName: 'Idle Pose',
+                previousAnimationName: 'Walk Forward',
+            }),
+        ).toBe('Idle Pose');
+
+        expect(walkAction.fadeOut).toHaveBeenCalledTimes(1);
+        expect(idleAction.reset).toHaveBeenCalledTimes(1);
+        expect(idleAction.setLoop).toHaveBeenCalledWith(LoopRepeat, Infinity);
+        expect(idleAction.fadeIn).toHaveBeenCalledTimes(1);
+        expect(idleAction.play).toHaveBeenCalledTimes(1);
     });
 });

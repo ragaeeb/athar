@@ -16,6 +16,10 @@ export type NormalizedSceneModel = {
 export const cloneStaticScene = (sourceScene: Object3D) => {
     let hasSkinnedMeshes = false;
     sourceScene.traverse((child) => {
+        if (hasSkinnedMeshes) {
+            return;
+        }
+
         if (child instanceof SkinnedMesh) {
             hasSkinnedMeshes = true;
         }

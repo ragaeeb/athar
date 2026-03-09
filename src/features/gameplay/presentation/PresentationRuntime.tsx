@@ -262,7 +262,7 @@ const executeCameraFollow = ({
         return {
             cameraCommitStepMeters: 0,
             jumpToDurationMs: -1,
-            recordedCenter: decision.recordedCenter,
+            recordedCenter: currentCenter,
         };
     }
 
@@ -325,7 +325,7 @@ const executeCameraFollow = ({
     return {
         cameraCommitStepMeters: decision.cameraCommitStepMeters,
         jumpToDurationMs,
-        recordedCenter: decision.recordedCenter,
+        recordedCenter: currentCenter,
     };
 };
 

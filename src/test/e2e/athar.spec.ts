@@ -1,4 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+
+const clickDialogueAction = async (page: Page) => {
+    const receiveHadithButton = page.getByRole('button', { name: /receive hadith/i });
+    await expect(receiveHadithButton).toBeVisible();
+    await expect(receiveHadithButton).toBeEnabled();
+    await receiveHadithButton.click({ force: true });
+    await expect(receiveHadithButton).toHaveCount(0);
+};
 
 test('completes the deterministic level one and level two smoke path', async ({ page }) => {
     await page.goto('/');
@@ -43,8 +51,7 @@ test('completes the deterministic level one and level two smoke path', async ({ 
         ).__atharDev__?.teleportToTeacher();
     });
 
-    await expect(page.getByRole('button', { name: /receive hadith/i })).toBeVisible();
-    await page.getByRole('button', { name: /receive hadith/i }).click();
+    await clickDialogueAction(page);
 
     await page.evaluate(() => {
         (
@@ -105,8 +112,7 @@ test('completes the deterministic level one and level two smoke path', async ({ 
             ).__atharDev__?.teleportToTeacher();
         });
 
-        await expect(page.getByRole('button', { name: /receive hadith/i })).toBeVisible();
-        await page.getByRole('button', { name: /receive hadith/i }).click();
+        await clickDialogueAction(page);
     }
 
     await page.evaluate(() => {

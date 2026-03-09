@@ -52,8 +52,10 @@ export const gameLevelLoader = ({ params, request }: LoaderFunctionArgs): GameLe
     }
 
     try {
+        const level = applyLevelRouteVariants(parseLevelConfig(levelDefinition), request.url);
+
         return {
-            level: parseLevelConfig(applyLevelRouteVariants(parseLevelConfig(levelDefinition), request.url)),
+            level,
             runtimeOverrides: parseGameLevelRuntimeOverrides(request.url),
         } satisfies GameLevelLoaderData;
     } catch (error) {

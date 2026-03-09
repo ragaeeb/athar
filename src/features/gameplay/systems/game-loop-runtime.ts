@@ -9,3 +9,5 @@ export const getSimulationCharacterModifiers = (
     speedMultiplier: characterConfig.speedMultiplier * movementSpeedMultiplier,
     tokenRadiusMultiplier: characterConfig.tokenRadiusMultiplier,
 });
+
+export const advanceSimulationNowMs = (currentNowMs: number, frameDeltaMs: number) => currentNowMs + frameDeltaMs;

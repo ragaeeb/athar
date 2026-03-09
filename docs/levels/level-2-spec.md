@@ -44,7 +44,7 @@ Implemented for Phase 2.
 
 - Runtime teacher dialogue is authored paraphrase, not presented as a direct quotation from a canonical hadith collection.
 - Historical notes stay descriptive and avoid overstating precise itineraries for a compressed game route.
-- Scholar identity, city labels, and completion copy are authored under the cultural/editorial guardrails from [ADR 0008](/Users/rhaq/workspace/athar/docs/adr/0008-cultural-editorial-guardrails.md).
+- Scholar identity, city labels, and completion copy are authored under the cultural/editorial guardrails from [ADR 0008](docs/adr/0008-cultural-editorial-guardrails.md).
 
 ## Phase 2 Checklist
 
