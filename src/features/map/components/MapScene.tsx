@@ -15,7 +15,7 @@ import {
     updateMapViewSnapshot,
 } from '@/features/debug/perf-metrics';
 import { supportsTouchTraversalControls } from '@/features/gameplay/controllers/touch-support';
-import { getSunLightPosition } from '@/features/map/lib/geo';
+import { resolveLevelLightingRig } from '@/features/map/lib/lighting-rig';
 import {
     createMapAssetRuntimeIssue,
     createWebGlRuntimeIssue,
@@ -79,7 +79,7 @@ const getMapErrorDetails = (error: unknown): { message: string; type: string | n
 };
 
 export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProps) => {
-    const sunPosition = getSunLightPosition(level.origin, level.lighting);
+    const lightingRig = resolveLevelLightingRig(level);
     const mapRef = useRef<MapRef | null>(null);
     const levelIdRef = useRef(level.id);
     const lastRuntimeIssueSignatureRef = useRef<string | null>(null);
@@ -327,15 +327,16 @@ export const MapScene = ({ level, children, onRuntimeIssueChange }: MapSceneProp
                 frameloop="always"
             >
                 <AdaptiveDpr pixelated />
-                <ambientLight intensity={0.8 * Math.PI} />
+                <ambientLight intensity={lightingRig.ambientIntensity} />
                 <directionalLight
                     castShadow
-                    position={sunPosition}
-                    intensity={1.3 * Math.PI}
+                    color={lightingRig.directionalColor}
+                    position={lightingRig.sunPosition}
+                    intensity={lightingRig.directionalIntensity}
                     shadow-mapSize-width={1024}
                     shadow-mapSize-height={1024}
                 />
-                <Environment preset="sunset" />
+                <Environment preset={lightingRig.environmentPreset} />
                 {children}
             </Canvas>
         </MapLibreMap>

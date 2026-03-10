@@ -27,6 +27,10 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Advisory content-governance check
+        run: bun run lint:content-governance
+        continue-on-error: true
+
       - name: Run unit and integration tests
         run: bun run test --coverage
 

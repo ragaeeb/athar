@@ -72,7 +72,7 @@ New work should target the canonical structure above and should not reintroduce 
 - `src/app/routes/index.tsx`
   Landing page, scholar selection, progress summary, and level listing.
 - `src/app/routes/game/level-route.tsx`
-  Main gameplay route. Resolves the level, initializes stores, mounts the map and controllers, and intentionally avoids hot gameplay store subscriptions above the map tree.
+  Main gameplay route. Resolves the level, initializes stores, mounts the map and controllers, evicts chapter-scoped GLTF assets on teardown, and intentionally avoids hot gameplay store subscriptions above the map tree.
 - `src/app/routes/game/complete.tsx`
   Completion summary flow.
 
@@ -97,6 +97,10 @@ New work should target the canonical structure above and should not reintroduce 
   StrictMode-safe registration for hot visual refs and presentation-only state.
 - `src/features/gameplay/systems/CollisionSystem.ts`
   Pure gameplay queries for proximity, encounters, and objective resolution.
+- `src/features/gameplay/simulation/systems/obstacle-patrol.ts`
+  Pure patrol math for moving hazard centers shared by simulation and presentation.
+- `src/features/gameplay/simulation/systems/obstacle-rules.ts`
+  Pure obstacle contracts for scatter, confiscation, rivalry, and scramble behavior.
 - `src/features/gameplay/systems/player-motion.ts`
   Pure movement and camera-follow math.
 
@@ -126,6 +130,8 @@ New work should target the canonical structure above and should not reintroduce 
 
 - `src/features/hud/components/**`
   Active HUD, dialogue, mission panel, counters, and other player-facing overlays. Hot HUD subscriptions should live here rather than in the route shell.
+- `src/features/hud/lib/encounter-feedback.ts`
+  Maps simulation hazard events into short-lived encounter-stage HUD feedback.
 
 ## Debug And Perf Layer
 
@@ -146,6 +152,7 @@ Athar currently uses Zustand heavily because it is simple and productive, but th
 - transient high-frequency presentation data should not automatically become broad reactive app state
 - persistence, completion summaries, and any future history/undo-like systems should only see durable gameplay facts
 - hot subscriptions should be pushed down close to the UI that consumes them so route-level rerenders do not re-diff the map / Three tree during gameplay
+- scholar choice can change rule evaluation, not just cosmetics or a single broad scalar
 
 This distinction matters because not every moving value in a Three scene is meaningful application state.
 
@@ -178,6 +185,8 @@ Why:
 - milestone buildings
 - obstacles
 - map labels
+
+Repeated cluster tokens now render through grouped instanced meshes, while short-lived scattered recovery tokens still use bespoke meshes because they are low-count and animate differently.
 
 ### Player placement
 
@@ -222,8 +231,10 @@ This is the current contract for the vertical slice and is already aligned with 
 - `react-three-map` precision and ergonomics at country-scale distances still need careful handling
 - runtime recovery for map/rendering faults is intentionally minimal and should expand with denser content
 - `GameLoop` is now mostly a bridge, but broader entity presentation still has room to move further into the registry over time
+- encounter staging exists, but encounter-specific camera language is still intentionally light
 - content and historical text still need deeper editorial review outside the shipped routes, even though Level 2 now has authored chapter content
 - audio cues are configured and a minimal placeholder cue pack is checked into `public/audio/**`, so runtime audio should bootstrap in normal repo state
+- route-level GLTF eviction and per-instance cleanup now exist for scene models, but broader dense-city culling still needs to expand for the finale chapter and any heavier future city scenes
 - accessibility, localization, and content-governance systems are only partially reflected in the runtime today
 
 ## Approved Near-Term Target Architecture

@@ -6,7 +6,9 @@ import type {
     TokenClusterObjective,
     TokenState,
 } from '@/content/levels/types';
+import { resolveObstaclePatrolCoords } from '@/features/gameplay/simulation/systems/obstacle-patrol';
 import {
+    COMPLETED_MILESTONE_SAFE_ZONE_RADIUS_METERS,
     MILESTONE_RADIUS_METERS,
     OBSTACLE_TRIGGER_RADIUS_METERS,
     TEACHER_INTERACTION_RADIUS_METERS,
@@ -41,11 +43,13 @@ export const findReachedMilestone = (
             worldDistanceInMeters(milestone.coords, playerCoords) <= MILESTONE_RADIUS_METERS,
     ) ?? null;
 
-export const findTriggeredObstacle = (playerCoords: { lat: number; lng: number }, config: LevelConfig) =>
-    config.obstacles.find(
-        (obstacle) =>
-            worldDistanceInMeters(obstacle.coords, playerCoords) <= (obstacle.radius ?? OBSTACLE_TRIGGER_RADIUS_METERS),
-    ) ?? null;
+export const findTriggeredObstacle = (playerCoords: { lat: number; lng: number }, config: LevelConfig, nowMs: number) =>
+    config.obstacles.find((obstacle) => {
+        const obstacleCoords = resolveObstaclePatrolCoords(obstacle, nowMs);
+        return (
+            worldDistanceInMeters(obstacleCoords, playerCoords) <= (obstacle.radius ?? OBSTACLE_TRIGGER_RADIUS_METERS)
+        );
+    }) ?? null;
 
 export const isWithinCompletedMilestoneSafeZone = (
     playerCoords: { lat: number; lng: number },
@@ -55,7 +59,7 @@ export const isWithinCompletedMilestoneSafeZone = (
     config.milestones.some(
         (milestone) =>
             completedMilestoneIds.includes(milestone.id) &&
-            worldDistanceInMeters(milestone.coords, playerCoords) <= MILESTONE_RADIUS_METERS,
+            worldDistanceInMeters(milestone.coords, playerCoords) <= COMPLETED_MILESTONE_SAFE_ZONE_RADIUS_METERS,
     );
 
 const createTokenClusterObjective = (config: LevelConfig, tokens: TokenState[]): TokenClusterObjective | null => {

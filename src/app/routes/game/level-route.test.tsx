@@ -5,11 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameLevelRoute } from '@/app/routes/game/level-route';
 import { DEFAULT_MOVEMENT_SPEED_MULTIPLIER } from '@/app/routes/game/runtime-overrides';
 import { level1 } from '@/content/levels/level-1/config';
+import { applyLevelRouteVariants } from '@/content/levels/route-variants';
 import { parseLevelConfig } from '@/content/levels/schema';
 import { resetGameStore, useGameStore } from '@/features/gameplay/state/game.store';
 import { resetLevelStore, useLevelStore } from '@/features/gameplay/state/level.store';
 import { resetPlayerStore, usePlayerStore } from '@/features/gameplay/state/player.store';
 import { resetGameplaySessionStore, useGameplaySessionStore } from '@/features/gameplay/state/session.store';
+
+const { evictLevelSceneAssetsMock } = vi.hoisted(() => ({
+    evictLevelSceneAssetsMock: vi.fn(),
+}));
 
 vi.mock('@/features/audio/audio-manager', () => ({
     audioManager: {
@@ -21,6 +26,10 @@ vi.mock('@/features/audio/audio-manager', () => ({
 
 vi.mock('@/features/debug/dev-tools', () => ({
     useAtharDevTools: vi.fn(),
+}));
+
+vi.mock('@/content/models/level-scene-assets', () => ({
+    evictLevelSceneAssets: evictLevelSceneAssetsMock,
 }));
 
 vi.mock('@/features/gameplay/controllers/PlayerController', () => ({
@@ -57,8 +66,8 @@ const renderRoute = () => {
             {
                 element: <GameLevelRoute />,
                 HydrateFallback: () => null,
-                loader: () => ({
-                    level: parseLevelConfig(level1),
+                loader: ({ request }) => ({
+                    level: applyLevelRouteVariants(parseLevelConfig(level1), request.url),
                     runtimeOverrides: {
                         movementSpeedMultiplier: DEFAULT_MOVEMENT_SPEED_MULTIPLIER,
                     },
@@ -80,6 +89,7 @@ describe('GameLevelRoute', () => {
         resetLevelStore();
         resetPlayerStore();
         resetGameplaySessionStore();
+        evictLevelSceneAssetsMock.mockReset();
         useGameStore.setState({
             currentLevel: 1,
             unlockedLevels: [1],
@@ -131,6 +141,72 @@ describe('GameLevelRoute', () => {
             expect(useLevelStore.getState().lockedHadith).toBe(0);
             expect(useLevelStore.getState().completedTeacherIds).toEqual([]);
             expect(useGameStore.getState().totalHadithVerified).toBe(19);
+        });
+    });
+
+    it('shows a defeat overlay and lets the chapter restart cleanly', async () => {
+        renderRoute();
+
+        await screen.findByRole('button', { name: /pause journey/i });
+
+        useGameplaySessionStore.getState().showDefeat({
+            detail: 'The scorpion closed the route before escape.',
+            title: 'Scorpion Ambush',
+        });
+
+        expect(await screen.findByText(/route broken/i)).toBeInTheDocument();
+        expect(screen.getByText(/scorpion ambush/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /restart chapter/i }));
+
+        await waitFor(() => {
+            expect(useGameplaySessionStore.getState().defeat).toBeNull();
+            expect(useGameplaySessionStore.getState().paused).toBe(false);
+        });
+    });
+
+    it('evicts chapter scene assets when the gameplay route unmounts', async () => {
+        const view = renderRoute();
+
+        await screen.findByRole('button', { name: /pause journey/i });
+
+        view.unmount();
+
+        expect(evictLevelSceneAssetsMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'level-1' }), 'bukhari');
+    });
+
+    it('reinitializes the chapter when query-based route variants change for the same level id', async () => {
+        const router = createMemoryRouter(
+            [
+                {
+                    element: <GameLevelRoute />,
+                    HydrateFallback: () => null,
+                    loader: ({ request }) => ({
+                        level: applyLevelRouteVariants(parseLevelConfig(level1), request.url),
+                        runtimeOverrides: {
+                            movementSpeedMultiplier: DEFAULT_MOVEMENT_SPEED_MULTIPLIER,
+                        },
+                    }),
+                    path: '/game/level-1',
+                },
+            ],
+            {
+                initialEntries: ['/game/level-1'],
+            },
+        );
+
+        render(<RouterProvider router={router} />);
+
+        await screen.findByRole('button', { name: /pause journey/i });
+
+        const defaultClusterRadius = useLevelStore.getState().config?.hadithTokenClusters[0]?.radius;
+
+        await router.navigate('/game/level-1?atharCompactRoute=1');
+
+        await waitFor(() => {
+            expect(useLevelStore.getState().config?.hadithTokenClusters[0]?.radius).toBeLessThan(
+                defaultClusterRadius ?? 0,
+            );
         });
     });
 });

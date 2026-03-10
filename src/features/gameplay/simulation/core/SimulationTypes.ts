@@ -1,8 +1,18 @@
 import type { AudioCue } from '@/content/audio/cues';
-import type { LevelConfig, NextObjective, ObjectiveStatus, TeacherConfig, TokenState } from '@/content/levels/types';
+import type {
+    LevelConfig,
+    NextObjective,
+    ObjectiveStatus,
+    ObstacleType,
+    TeacherConfig,
+    TokenState,
+} from '@/content/levels/types';
 
 export type SimulationCharacterModifiers = {
+    guardLossMultiplier: number;
     obstacleDamageMultiplier: number;
+    rivalLossMultiplier: number;
+    scrambleDurationMultiplier: number;
     speedMultiplier: number;
     tokenRadiusMultiplier: number;
 };
@@ -47,9 +57,20 @@ export type SimulationState = {
 
 export type SimulationEvent =
     | { type: 'audio'; cue: AudioCue }
+    | {
+          type: 'hazard-triggered';
+          effect: 'confiscate' | 'kill' | 'scatter' | 'scramble' | 'steal' | 'wash';
+          lostCount: number;
+          obstacleId: string;
+          obstacleLabel: string;
+          obstacleType: ObstacleType;
+          recoverableCount: number;
+          scrambleDurationMs: number;
+      }
     | { type: 'dialogue-opened'; teacher: TeacherConfig }
     | { type: 'milestone-completed'; milestoneId: string }
     | { type: 'objective-updated'; objective: NextObjective }
+    | { type: 'player-defeated'; obstacleId: string; obstacleLabel: string; obstacleType: ObstacleType }
     | { type: 'player-hit'; lostCount: number }
     | { type: 'player-moved' }
     | { type: 'teacher-ready'; teacherId: string }

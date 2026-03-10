@@ -5,7 +5,10 @@ export const getSimulationCharacterModifiers = (
     characterConfig: CharacterConfig,
     movementSpeedMultiplier: number,
 ): SimulationCharacterModifiers => ({
+    guardLossMultiplier: characterConfig.guardLossMultiplier,
     obstacleDamageMultiplier: characterConfig.obstacleDamageMultiplier,
+    rivalLossMultiplier: characterConfig.rivalLossMultiplier,
+    scrambleDurationMultiplier: characterConfig.scrambleDurationMultiplier,
     speedMultiplier: characterConfig.speedMultiplier * movementSpeedMultiplier,
     tokenRadiusMultiplier: characterConfig.tokenRadiusMultiplier,
 });

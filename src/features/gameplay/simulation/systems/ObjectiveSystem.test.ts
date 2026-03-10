@@ -8,7 +8,10 @@ import { metersOffsetFromCoords } from '@/shared/geo';
 
 const createSimulationState = (overrides?: Partial<SimulationState>): SimulationState => ({
     character: {
+        guardLossMultiplier: CHARACTER_CONFIGS.bukhari.guardLossMultiplier,
         obstacleDamageMultiplier: CHARACTER_CONFIGS.bukhari.obstacleDamageMultiplier,
+        rivalLossMultiplier: CHARACTER_CONFIGS.bukhari.rivalLossMultiplier,
+        scrambleDurationMultiplier: CHARACTER_CONFIGS.bukhari.scrambleDurationMultiplier,
         speedMultiplier: CHARACTER_CONFIGS.bukhari.speedMultiplier,
         tokenRadiusMultiplier: CHARACTER_CONFIGS.bukhari.tokenRadiusMultiplier,
     },

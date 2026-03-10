@@ -4,6 +4,7 @@ import { Link, useLoaderData, useNavigate } from 'react-router-dom';
 import { parseGameLevelLoaderData } from '@/app/routes/game/level.loader';
 import { LEVEL_REGISTRY } from '@/content/levels/registry';
 import type { LevelConfig } from '@/content/levels/types';
+import { evictLevelSceneAssets } from '@/content/models/level-scene-assets';
 import { audioManager } from '@/features/audio/audio-manager';
 import { useAtharDevTools } from '@/features/debug/dev-tools';
 import { clearInputState } from '@/features/gameplay/controllers/input-state';
@@ -15,6 +16,7 @@ import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
 import { resetGameplaySessionStore, useGameplaySessionStore } from '@/features/gameplay/state/session.store';
 import { GameLoop } from '@/features/gameplay/systems/GameLoop';
+import { GameplayDefeatOverlay } from '@/features/hud/components/GameplayDefeatOverlay';
 import { GameplayPauseOverlay } from '@/features/hud/components/GameplayPauseOverlay';
 import { HUD } from '@/features/hud/components/HUD';
 import { TraversalOnboarding } from '@/features/hud/components/TraversalOnboarding';
@@ -31,6 +33,19 @@ const initializeChapterSession = (level: LevelConfig) => {
     usePlayerStore.getState().initializePlayer(level.milestones[0]?.coords ?? level.origin, level.origin);
     useLevelStore.getState().initializeLevel(level);
 };
+
+const createChapterSessionSignature = (level: LevelConfig, movementSpeedMultiplier: number) =>
+    JSON.stringify({
+        hadithTokenClusters: level.hadithTokenClusters,
+        id: level.id,
+        initialView: level.initialView,
+        milestones: level.milestones,
+        movementSpeedMultiplier,
+        namedAreas: level.namedAreas,
+        obstacles: level.obstacles,
+        origin: level.origin,
+        teachers: level.teachers,
+    });
 
 const LockedLevelView = () => (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -108,7 +123,9 @@ const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
                     {level.completionContent.eyebrow}
                 </p>
                 <h2 className="mt-4 font-display text-4xl text-sand-50">{level.subtitle}</h2>
-                <p className="mt-4 text-sand-100/75">{level.completionNarration}</p>
+                <p className="mt-4 text-sand-100/75" dir="auto">
+                    {level.completionNarration}
+                </p>
                 <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
                     <Card tone="muted" className="rounded-2xl p-4">
                         <p className="text-xs uppercase tracking-[0.25em] text-sand-100/55">Chapter Verified</p>
@@ -134,12 +151,14 @@ const CompletionOverlay = ({ level }: { level: LevelConfig }) => {
 export const GameLevelRoute = () => {
     const loaderData = useLoaderData();
     const { level, runtimeOverrides } = parseGameLevelLoaderData(loaderData);
+    const chapterSessionSignature = createChapterSessionSignature(level, runtimeOverrides.movementSpeedMultiplier);
     const [mapResetKey, setMapResetKey] = useState(0);
     const [sessionResetKey, setSessionResetKey] = useState(0);
     const [runtimeIssue, setRuntimeIssue] = useState<MapRuntimeIssue | null>(null);
     const unlockedLevels = useGameStore((state) => state.unlockedLevels);
     const onboardingDismissed = useGameplaySessionStore((state) => state.onboardingDismissed);
     const paused = useGameplaySessionStore((state) => state.paused);
+    const defeat = useGameplaySessionStore((state) => state.defeat);
     const isComplete = useLevelStore((state) => state.isComplete);
     const dialogueOpen = usePlayerStore((state) => state.dialogueOpen);
     const hasAccess = unlockedLevels.includes(level.order);
@@ -166,6 +185,7 @@ export const GameLevelRoute = () => {
             return;
         }
 
+        const selectedCharacter = useGameStore.getState().selectedCharacter;
         initializeChapterSession(level);
         audioManager.setAmbient(level.ambientCue);
         const warmupTimerId = window.setTimeout(() => {
@@ -175,8 +195,9 @@ export const GameLevelRoute = () => {
         return () => {
             window.clearTimeout(warmupTimerId);
             audioManager.disposeAll();
+            evictLevelSceneAssets(level, selectedCharacter);
         };
-    }, [hasAccess, level.id]);
+    }, [chapterSessionSignature, hasAccess]);
 
     useEffect(() => {
         clearInputState();
@@ -184,7 +205,7 @@ export const GameLevelRoute = () => {
         setRuntimeIssue(null);
         setMapResetKey(0);
         setSessionResetKey(0);
-    }, [level.id]);
+    }, [chapterSessionSignature]);
 
     useEffect(
         () => () => {
@@ -202,7 +223,7 @@ export const GameLevelRoute = () => {
         return <PreviewLevelView subtitle={level.subtitle} teaser={level.teaser} />;
     }
 
-    const mapInstanceKey = `${level.id}:${sessionResetKey}:${mapResetKey}`;
+    const mapInstanceKey = `${chapterSessionSignature}:${sessionResetKey}:${mapResetKey}`;
 
     return (
         <main className="relative h-screen w-screen overflow-hidden bg-ink-950">
@@ -241,11 +262,15 @@ export const GameLevelRoute = () => {
                 ) : null}
             </div>
 
-            {paused && !runtimeIssue?.blocking && !isComplete ? (
+            {defeat && !runtimeIssue?.blocking && !isComplete ? (
+                <GameplayDefeatOverlay defeat={defeat} onRestart={handleRestartChapter} />
+            ) : null}
+
+            {paused && !defeat && !runtimeIssue?.blocking && !isComplete ? (
                 <GameplayPauseOverlay onRestart={handleRestartChapter} onResume={handlePauseToggle} />
             ) : null}
 
-            {!onboardingDismissed && !paused && !runtimeIssue && !isComplete && !dialogueOpen ? (
+            {!onboardingDismissed && !paused && !defeat && !runtimeIssue && !isComplete && !dialogueOpen ? (
                 <TraversalOnboarding />
             ) : null}
 

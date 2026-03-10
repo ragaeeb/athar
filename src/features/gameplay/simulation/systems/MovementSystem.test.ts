@@ -10,7 +10,10 @@ import { metersOffsetFromCoords } from '@/shared/geo';
 
 const createSimulationState = (): SimulationState => ({
     character: {
+        guardLossMultiplier: CHARACTER_CONFIGS.bukhari.guardLossMultiplier,
         obstacleDamageMultiplier: CHARACTER_CONFIGS.bukhari.obstacleDamageMultiplier,
+        rivalLossMultiplier: CHARACTER_CONFIGS.bukhari.rivalLossMultiplier,
+        scrambleDurationMultiplier: CHARACTER_CONFIGS.bukhari.scrambleDurationMultiplier,
         speedMultiplier: CHARACTER_CONFIGS.bukhari.speedMultiplier,
         tokenRadiusMultiplier: CHARACTER_CONFIGS.bukhari.tokenRadiusMultiplier,
     },
@@ -98,6 +101,29 @@ describe('MovementSystem', () => {
             bearing: Math.PI / 2,
             coords: { lat: 39.78, lng: 64.44 },
             positionMeters: { x: 10, z: 0 },
+            speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * state.character.speedMultiplier,
+        });
+    });
+
+    it('reverses horizontal movement while scramble is active', () => {
+        const state = createSimulationState();
+        state.player.scrambleUntil = state.nowMs + 1_000;
+        const resolveMovementStepSpy = vi.spyOn(movementUtils, 'resolveMovementStep').mockReturnValue({
+            bearing: -Math.PI / 2,
+            distanceMeters: 10,
+            nextCoords: { lat: 39.78, lng: 64.42 },
+            nextPositionMeters: { x: -10, z: 0 },
+        });
+
+        applyMovementStep(state, { moveX: 1, moveZ: 0 }, 50);
+
+        expect(resolveMovementStepSpy).toHaveBeenCalledWith({
+            delta: 0.05,
+            moveX: 1,
+            moveZ: 0,
+            origin: state.level.origin,
+            positionMeters: state.player.positionMeters,
+            scrambleMultiplier: -1,
             speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * state.character.speedMultiplier,
         });
     });

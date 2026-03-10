@@ -182,4 +182,42 @@ describe('game.store migrations', () => {
         expect(useGameStore.getState().totalHadithVerified).toBe(30);
         expect(useGameStore.getState().verifiedHadithByLevel).toEqual({ 'level-1': 30 });
     });
+
+    it('does not unlock a nonexistent level after the final chapter completes', () => {
+        useGameStore.setState({
+            currentLevel: 5,
+            lastCompletion: null,
+            legacyVerifiedHadithBalance: 0,
+            selectedCharacter: 'bukhari',
+            totalHadithVerified: 166,
+            unlockedLevels: [1, 2, 3, 4, 5],
+            verifiedHadithByLevel: {
+                'level-1': 30,
+                'level-2': 36,
+                'level-3': 48,
+                'level-4': 52,
+            },
+        });
+
+        useGameStore.getState().recordCompletion(
+            createCompletionSummary(60, {
+                levelId: 'level-5',
+                levelName: 'Level 5',
+                levelSubtitle: 'The Grand Finale: Syria, Egypt, and the Compilation',
+                teachersMet: 2,
+            }),
+            null,
+        );
+
+        expect(useGameStore.getState().currentLevel).toBe(5);
+        expect(useGameStore.getState().unlockedLevels).toEqual([1, 2, 3, 4, 5]);
+        expect(useGameStore.getState().totalHadithVerified).toBe(226);
+        expect(useGameStore.getState().verifiedHadithByLevel).toEqual({
+            'level-1': 30,
+            'level-2': 36,
+            'level-3': 48,
+            'level-4': 52,
+            'level-5': 60,
+        });
+    });
 });

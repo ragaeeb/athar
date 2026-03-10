@@ -20,3 +20,4 @@ Athar should:
 - cultural/editorial review can happen without code archaeology
 - placeholder-heavy scaffold chapters remain clearly scoped as scaffold content
 - future chapter work has an explicit place to enforce review discipline
+- advisory content-governance linting can flag placeholder markers and chapter-specific framing in shared registries before review drifts too far

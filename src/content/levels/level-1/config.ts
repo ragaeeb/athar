@@ -30,7 +30,7 @@ export const level1: LevelConfig = {
             radius: 30_000,
         },
         {
-            center: { lat: 36.76, lng: 66.9 },
+            center: { lat: 36.76, lng: 67.72 },
             count: 12,
             id: 'balkh-cluster',
             label: 'Balkh study circles',
@@ -109,7 +109,7 @@ export const level1: LevelConfig = {
         'Young al-Bukhari leaves Bukhara and pushes south and west through Khurasan on the road to the holy sanctuary. The route is compressed into a high-speed caravan map so the level stays playable while preserving the real city anchors.',
     obstacles: [
         {
-            coords: { lat: 37.6, lng: 61.83 },
+            coords: { lat: 36.97118217750629, lng: 63.80585907167137 },
             id: 'viper-khurasan-pass',
             label: 'Desert Viper',
             patrolRadius: 30_000,

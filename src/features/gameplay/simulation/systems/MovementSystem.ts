@@ -41,7 +41,7 @@ export const applyMovementStep = (
         moveZ: input.moveZ,
         origin: state.level.origin,
         positionMeters: state.player.positionMeters,
-        scrambleMultiplier: 1,
+        scrambleMultiplier: state.player.scrambleUntil > state.nowMs ? -1 : 1,
         speed,
     });
 

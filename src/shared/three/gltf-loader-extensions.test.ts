@@ -39,7 +39,10 @@ describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
         };
 
         const extension = new GLTFPBRSpecGlossinessFallbackExtension(parser);
-        const materialParams: Record<string, unknown> = {};
+        const materialParams: Record<string, unknown> = {
+            metalness: 0.3,
+            roughness: 0.7,
+        };
 
         expect(extension.getMaterialType(0)).toBe(MeshBasicMaterial);
 
@@ -55,6 +58,8 @@ describe('GLTFPBRSpecGlossinessFallbackExtension', () => {
         );
         expect(materialParams.opacity).toBeCloseTo(0.8, 5);
         expect(materialParams.color).toBeInstanceOf(Color);
+        expect(materialParams).not.toHaveProperty('metalness');
+        expect(materialParams).not.toHaveProperty('roughness');
         expect(warnMessages).toEqual(['THREE.WARNING: Multiple instances of Three.js being imported.']);
     });
 

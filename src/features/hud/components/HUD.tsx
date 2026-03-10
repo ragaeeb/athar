@@ -6,6 +6,7 @@ import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtim
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
+import { type SessionEncounterFeedback, useGameplaySessionStore } from '@/features/gameplay/state/session.store';
 import {
     resolveHadithFeedbackTone,
     resolveObjectiveFeedbackTone,
@@ -64,6 +65,10 @@ type ObjectivesDrawerContentProps = {
     level: LevelConfig;
     objective: NextObjective;
     objectives: ObjectiveStatus[];
+};
+
+type EncounterBannerProps = {
+    feedback: SessionEncounterFeedback | null;
 };
 
 const resolveNavigationStatus = (objective: NextObjective): NavigationStatus => {
@@ -171,6 +176,55 @@ const Drawer = ({ side, title, open, onToggle, children }: DrawerProps) => {
     );
 };
 
+const encounterToneClasses: Record<NonNullable<SessionEncounterFeedback>['tone'], string> = {
+    accent: 'border-gold-400/28 bg-gold-400/12 text-gold-200',
+    danger: 'border-rose-500/35 bg-rose-500/14 text-sand-50',
+    warning: 'border-[color:var(--color-ui-warning)]/35 bg-[color:var(--color-ui-warning)]/12 text-sand-50',
+};
+
+const EncounterBanner = ({ feedback }: EncounterBannerProps) => {
+    useEffect(() => {
+        if (!feedback) {
+            return;
+        }
+
+        const timeoutMs = Math.max(0, feedback.expiresAtMs - performance.now());
+        const timeoutId = window.setTimeout(() => {
+            useGameplaySessionStore.getState().clearEncounterFeedback();
+        }, timeoutMs);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [feedback]);
+
+    return (
+        <AnimatePresence initial={false}>
+            {feedback ? (
+                <motion.div
+                    initial={{ opacity: 0, y: -14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="pointer-events-none absolute top-24 left-1/2 z-20 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 lg:top-28"
+                >
+                    <Card
+                        aria-live="polite"
+                        className={`px-4 py-3 ${encounterToneClasses[feedback.tone]}`}
+                        role="status"
+                    >
+                        <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-current/80">Encounter</p>
+                        <p className="mt-2 font-display text-lg text-current">{feedback.title}</p>
+                        <p className="mt-1 text-sm text-current/80" dir="auto">
+                            {feedback.detail}
+                        </p>
+                    </Card>
+                </motion.div>
+            ) : null}
+        </AnimatePresence>
+    );
+};
+
 const NavigationTopBar = memo(
     ({ currentTokens, level, lockedHadith, objective, teacherCount }: NavigationTopBarProps) => {
         const navigation = useNavigationStatus(objective);
@@ -249,6 +303,7 @@ export const HUD = ({ level }: HUDProps) => {
     const lockedHadith = useLevelStore((state) => state.lockedHadith);
     const totalVerified = useGameStore((state) => state.totalHadithVerified);
     const teacherCount = useLevelStore((state) => state.completedTeacherIds.length);
+    const encounterFeedback = useGameplaySessionStore((state) => state.encounterFeedback);
     const [missionOpen, setMissionOpen] = useState(false);
     const [progressOpen, setProgressOpen] = useState(false);
 
@@ -261,6 +316,7 @@ export const HUD = ({ level }: HUDProps) => {
                 objective={objective}
                 teacherCount={teacherCount}
             />
+            <EncounterBanner feedback={encounterFeedback} />
 
             <Drawer
                 side="left"

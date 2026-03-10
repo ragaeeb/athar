@@ -11,6 +11,8 @@ import { useLevelStore } from '@/features/gameplay/state/level.store';
 import { Milestone3DBuilding } from '@/features/milestones/components/Milestone3DBuilding';
 import { ObstacleEntity } from '@/features/obstacles/components/ObstacleEntity';
 import { HadithToken } from '@/features/tokens/components/HadithToken';
+import { HadithTokenClusterInstances } from '@/features/tokens/components/HadithTokenClusterInstances';
+import { buildTokenRenderGroups } from '@/features/tokens/lib/token-render-groups';
 import { MAP_LABEL_FONT_SIZE } from '@/shared/constants/gameplay';
 
 type LevelMapProps = {
@@ -44,6 +46,7 @@ const PlayerMarker = () => {
 
 export const LevelMap = ({ level }: LevelMapProps) => {
     const tokens = useLevelStore((state) => state.tokens);
+    const { clusterGroups, scatteredTokens } = buildTokenRenderGroups(tokens);
 
     return (
         <>
@@ -81,21 +84,17 @@ export const LevelMap = ({ level }: LevelMapProps) => {
                 </Coordinates>
             ))}
 
-            {tokens
-                .filter((token) => !token.collected)
-                .map((token) =>
-                    token.kind === 'cluster' ? (
-                        <NearCoordinates key={token.id} latitude={token.anchor.lat} longitude={token.anchor.lng}>
-                            <group position={[token.localOffsetMeters.x, 0, token.localOffsetMeters.z]}>
-                                <HadithToken token={token} />
-                            </group>
-                        </NearCoordinates>
-                    ) : (
-                        <Coordinates key={token.id} latitude={token.coords.lat} longitude={token.coords.lng}>
-                            <HadithToken token={token} />
-                        </Coordinates>
-                    ),
-                )}
+            {clusterGroups.map((group) => (
+                <NearCoordinates key={group.id} latitude={group.anchor.lat} longitude={group.anchor.lng}>
+                    <HadithTokenClusterInstances tokens={group.tokens} />
+                </NearCoordinates>
+            ))}
+
+            {scatteredTokens.map((token) => (
+                <Coordinates key={token.id} latitude={token.coords.lat} longitude={token.coords.lng}>
+                    <HadithToken token={token} />
+                </Coordinates>
+            ))}
 
             <Coordinates latitude={level.origin.lat} longitude={level.origin.lng}>
                 <PlayerMarker />

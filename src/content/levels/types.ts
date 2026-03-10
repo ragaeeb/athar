@@ -21,7 +21,7 @@ export type TeacherConfig = {
     historicalNote: string;
 };
 
-export type ObstacleType = 'viper' | 'sandstorm' | 'guard' | 'flood' | 'rival';
+export type ObstacleType = 'viper' | 'sandstorm' | 'guard' | 'flood' | 'rival' | 'scorpion';
 
 export type ObstacleConfig = {
     id: string;

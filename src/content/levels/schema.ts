@@ -47,7 +47,7 @@ const obstacleSchema = z.object({
     label: z.string().min(1),
     patrolRadius: z.number().finite().positive().optional(),
     radius: z.number().finite().positive().optional(),
-    type: z.enum(['viper', 'sandstorm', 'guard', 'flood', 'rival']),
+    type: z.enum(['viper', 'sandstorm', 'guard', 'flood', 'rival', 'scorpion']),
 });
 
 const milestoneSchema = z.object({

@@ -1,7 +1,8 @@
 import { useGLTF } from '@react-three/drei';
-import { extendGLTFSceneLoader } from '@/shared/three/gltf-loader-extensions';
+import { useEffect } from 'react';
+import { extendGLTFSceneLoader, registerGLTFSceneModelSource } from '@/shared/three/gltf-loader-extensions';
 import type { GLTFSceneMaterialCustomizer, GLTFSceneMaterialMode } from '@/shared/three/gltf-materials';
-import { buildNormalizedSceneModel } from '@/shared/three/gltf-scene-model-utils';
+import { buildNormalizedSceneModel, disposeSceneModelInstance } from '@/shared/three/gltf-scene-model-utils';
 
 type GLTFSceneModelProps = {
     materialCustomizer?: GLTFSceneMaterialCustomizer;
@@ -10,6 +11,7 @@ type GLTFSceneModelProps = {
     position?: [number, number, number];
     rotation?: [number, number, number];
     targetHeight: number;
+    targetFootprint?: number;
 };
 
 export const GLTFSceneModel = ({
@@ -19,6 +21,7 @@ export const GLTFSceneModel = ({
     position = [0, 0, 0],
     rotation = [0, 0, 0],
     targetHeight,
+    targetFootprint,
 }: GLTFSceneModelProps) => {
     const gltf = useGLTF(modelPath, true, true, extendGLTFSceneLoader);
     const { normalizedScene, normalizedScale, sceneOffset } = buildNormalizedSceneModel({
@@ -26,7 +29,19 @@ export const GLTFSceneModel = ({
         materialMode,
         scene: gltf.scene,
         targetHeight,
+        ...(targetFootprint ? { targetFootprint } : {}),
     });
+
+    useEffect(() => {
+        registerGLTFSceneModelSource(modelPath, gltf.scene);
+    }, [gltf.scene, modelPath]);
+
+    useEffect(
+        () => () => {
+            disposeSceneModelInstance(normalizedScene);
+        },
+        [normalizedScene],
+    );
 
     return (
         <group position={position} rotation={rotation} scale={normalizedScale}>

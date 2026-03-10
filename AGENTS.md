@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Athar is a web-based 3D educational map game about hadith journeys. The repo currently contains a desktop-first vertical slice with two playable chapters and the supporting architecture that future chapters will build on.
+Athar is a web-based 3D educational map game about hadith journeys. The repo currently contains a desktop-first vertical slice with five playable chapters and the supporting architecture that future chapters will build on.
 
 This file is an onboarding reference for new AI agents working in the repo. It should stay concise and current.
 
@@ -32,6 +32,7 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 - `bun run dev`
 - `bun run typecheck`
 - `bun run lint`
+- `bun run lint:content-governance`
 - `bun run test`
 - `bun run test:e2e`
 - `bun run test:perf`
@@ -75,6 +76,7 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 - [src/shared/constants/gameplay.ts](src/shared/constants/gameplay.ts)
 - [src/content/scholars/scholar-profiles.ts](src/content/scholars/scholar-profiles.ts)
 - [src/shared/geo.ts](src/shared/geo.ts)
+- [scripts/check-content-governance.mjs](scripts/check-content-governance.mjs)
 
 ### HUD / UI
 
@@ -98,8 +100,7 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 
 ## Current Product Reality
 
-- Levels 1 and 2 are playable chapters on the current architecture.
-- Levels 3–5 are scaffold data, not finished chapters.
+- Levels 1 through 5 are playable chapters on the current architecture.
 - Teacher dialogue in later chapters is authored paraphrase and still needs deeper domain review.
 - Mobile controls and advanced city/world rendering are not done yet.
 - `public/audio/**` now contains a minimal checked-in placeholder cue pack, so the audio system should bootstrap in normal repo state.
@@ -112,6 +113,7 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 - Do not keep hot gameplay Zustand subscriptions in route-level components above `MapScene` / `GameLoop` / `LevelMap`; subscribe in leaf HUD/overlay components instead.
 - Prefer systems / batched runtime logic over per-entity React logic for dirty-flagged or cross-entity behavior.
 - Treat content/config validation as part of the runtime contract, not optional polish.
+- Keep shared scholar/content registries chapter-agnostic; chapter framing belongs in `src/content/levels/**`.
 - React Compiler is enabled. Do not add `useMemo` or `useCallback` by default.
 - If you believe a manual memoization escape hatch is still necessary, treat it as an exception that requires explicit justification in code review.
 
@@ -137,6 +139,7 @@ High-signal channels:
 - `hud`
 - `route`
 - spike/problem events are intentionally logged in all caps, for example `GAME_LOOP_SPIKE`, `PRESENTATION_FRAME_SPIKE`, `LONG_TASK`
+- `bun run lint:content-governance` is advisory-first and checks `src/content/**` for placeholder markers plus chapter/route framing leaking into shared scholar registries.
 
 ## Perf / Test Bridge
 
