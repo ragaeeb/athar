@@ -24,7 +24,7 @@ jobs:
           tmp_manifest="$(mktemp)"
           trap 'rm -f "$tmp_public" "$tmp_manifest"' EXIT
 
-          find public -type f | sort > "$tmp_public"
+          git ls-files public | grep '^public/' | grep -v '/\.gitkeep$' | sort > "$tmp_public"
 
           python3 - "$manifest" <<'PY' | sort -u > "$tmp_manifest"
           import pathlib
@@ -33,6 +33,10 @@ jobs:
 
           text = pathlib.Path(sys.argv[1]).read_text()
           for path in re.findall(r'`(public/[^`]+)`', text):
+              if "*" in path:
+                  continue
+              if path.endswith("/") or path.endswith(".gitkeep"):
+                  continue
               print(path)
           PY
 
