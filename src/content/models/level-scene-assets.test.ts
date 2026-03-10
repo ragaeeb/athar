@@ -15,6 +15,7 @@ describe('level scene assets', () => {
             '/models/scholars/traveling-scholar.glb',
             '/models/buildings/thatched-hut.glb',
             '/models/buildings/medieval-house.glb',
+            '/models/obstacles/viper.glb',
         ]);
     });
 
@@ -24,10 +25,11 @@ describe('level scene assets', () => {
 
         evictLevelSceneAssets(level1, 'bukhari');
 
-        expect(evictGLTFSceneModel).toHaveBeenCalledTimes(4);
+        expect(evictGLTFSceneModel).toHaveBeenCalledTimes(5);
         expect(evictGLTFSceneModel).toHaveBeenNthCalledWith(1, '/models/characters/player.glb');
         expect(evictGLTFSceneModel).toHaveBeenNthCalledWith(2, '/models/scholars/traveling-scholar.glb');
         expect(evictGLTFSceneModel).toHaveBeenNthCalledWith(3, '/models/buildings/thatched-hut.glb');
         expect(evictGLTFSceneModel).toHaveBeenNthCalledWith(4, '/models/buildings/medieval-house.glb');
+        expect(evictGLTFSceneModel).toHaveBeenNthCalledWith(5, '/models/obstacles/viper.glb');
     });
 });
