@@ -4,7 +4,7 @@ import { Link, useLoaderData, useNavigate } from 'react-router-dom';
 import { parseGameLevelLoaderData } from '@/app/routes/game/level.loader';
 import { LEVEL_REGISTRY } from '@/content/levels/registry';
 import type { LevelConfig } from '@/content/levels/types';
-import { evictLevelSceneAssets } from '@/content/models/level-scene-assets';
+import { evictLevelSceneAssets, preloadObstacleModelsForLevel } from '@/content/models/level-scene-assets';
 import { audioManager } from '@/features/audio/audio-manager';
 import { useAtharDevTools } from '@/features/debug/dev-tools';
 import { clearInputState } from '@/features/gameplay/controllers/input-state';
@@ -188,6 +188,7 @@ export const GameLevelRoute = () => {
         const selectedCharacter = useGameStore.getState().selectedCharacter;
         initializeChapterSession(level);
         audioManager.setAmbient(level.ambientCue);
+        preloadObstacleModelsForLevel(level);
         const warmupTimerId = window.setTimeout(() => {
             audioManager.warmup();
         }, 0);

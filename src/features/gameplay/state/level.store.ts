@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { LevelConfig, NextObjective, ObjectiveStatus, TokenState } from '@/content/levels/types';
+import { nextObjectivesMatch } from '@/features/gameplay/objective-utils';
 import { buildObjectiveStatuses, getChapterHadithTotal } from '@/features/gameplay/objectives';
 import type { SimulationLevelState } from '@/features/gameplay/simulation/core/SimulationTypes';
 import { usePlayerStore } from '@/features/gameplay/state/player.store';
@@ -61,34 +62,6 @@ type LevelSyncChanges = {
     tokensChanged: boolean;
 };
 
-const objectivesMatch = (left: NextObjective, right: NextObjective) => {
-    if (left === right) {
-        return true;
-    }
-
-    if (!left || !right) {
-        return left === right;
-    }
-
-    if (left.id !== right.id) {
-        return false;
-    }
-
-    if ('density' in left && 'density' in right) {
-        return left.density === right.density;
-    }
-
-    if ('buildingType' in left || 'buildingType' in right) {
-        return 'buildingType' in left && 'buildingType' in right;
-    }
-
-    if ('hadith' in left || 'hadith' in right) {
-        return 'hadith' in left && 'hadith' in right;
-    }
-
-    return true;
-};
-
 const stringArraysMatch = (left: string[], right: string[]) =>
     left.length === right.length && left.every((value, index) => value === right[index]);
 
@@ -147,7 +120,7 @@ const getLevelSyncChanges = (state: LevelState, levelState: SimulationLevelState
     completedTeacherIdsChanged: !stringArraysMatch(state.completedTeacherIds, levelState.completedTeacherIds),
     isCompleteChanged: state.isComplete !== levelState.isComplete,
     lockedHadithChanged: state.lockedHadith !== levelState.lockedHadith,
-    nextObjectiveChanged: !objectivesMatch(state.nextObjective, levelState.nextObjective),
+    nextObjectiveChanged: !nextObjectivesMatch(state.nextObjective, levelState.nextObjective),
     objectivesChanged: !objectiveStatusesMatch(state.objectives, levelState.objectives),
     tokensChanged: !tokensMatch(state.tokens, levelState.tokens),
 });
@@ -265,6 +238,7 @@ export const useLevelStore = create<LevelState>()((set) => ({
         }),
     initializeLevel: (config) =>
         set({
+            // The route always starts inside the authored departure city, so the first milestone is pre-completed.
             completedMilestoneIds: [config.milestones[0]?.id].filter(Boolean) as string[],
             completedTeacherIds: [],
             config,
@@ -303,7 +277,7 @@ export const useLevelStore = create<LevelState>()((set) => ({
         }),
     setNextObjective: (nextObjective) =>
         set((state) => {
-            if (objectivesMatch(state.nextObjective, nextObjective)) {
+            if (nextObjectivesMatch(state.nextObjective, nextObjective)) {
                 return state;
             }
 

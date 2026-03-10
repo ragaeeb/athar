@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import {
     DEFAULT_MOVEMENT_SPEED_MULTIPLIER,
     type GameLevelRuntimeOverrides,
+    isMovementSpeedMultiplierWithinBounds,
     parseGameLevelRuntimeOverrides,
 } from '@/app/routes/game/runtime-overrides';
 import { getLevelDefinitionById } from '@/content/levels/registry';
@@ -33,9 +34,7 @@ const parseGameLevelLoaderData = (value: unknown): GameLevelLoaderData => {
             candidate === null ||
             !('movementSpeedMultiplier' in candidate) ||
             typeof candidate.movementSpeedMultiplier !== 'number' ||
-            !Number.isFinite(candidate.movementSpeedMultiplier) ||
-            candidate.movementSpeedMultiplier < 0.1 ||
-            candidate.movementSpeedMultiplier > 20
+            !isMovementSpeedMultiplierWithinBounds(candidate.movementSpeedMultiplier)
         ) {
             throw new Error('Invalid game level runtime overrides.');
         }

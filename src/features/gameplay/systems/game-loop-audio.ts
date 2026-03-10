@@ -3,8 +3,4 @@ import type { SimulationPlayerState } from '@/features/gameplay/simulation/core/
 export const shouldPlayTeacherEncounterAudio = (
     previousPlayer: Pick<SimulationPlayerState, 'activeTeacher' | 'dialogueOpen'>,
     nextPlayer: Pick<SimulationPlayerState, 'activeTeacher' | 'dialogueOpen'>,
-) =>
-    !previousPlayer.dialogueOpen &&
-    nextPlayer.dialogueOpen &&
-    nextPlayer.activeTeacher !== null &&
-    previousPlayer.activeTeacher?.id !== nextPlayer.activeTeacher.id;
+) => !previousPlayer.dialogueOpen && nextPlayer.dialogueOpen && nextPlayer.activeTeacher !== null;

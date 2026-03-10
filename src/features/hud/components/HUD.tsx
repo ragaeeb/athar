@@ -199,29 +199,32 @@ const EncounterBanner = ({ feedback }: EncounterBannerProps) => {
     }, [feedback]);
 
     return (
-        <AnimatePresence initial={false}>
-            {feedback ? (
-                <motion.div
-                    initial={{ opacity: 0, y: -14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    className="pointer-events-none absolute top-24 left-1/2 z-20 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 lg:top-28"
-                >
-                    <Card
-                        aria-live="polite"
-                        className={`px-4 py-3 ${encounterToneClasses[feedback.tone]}`}
-                        role="status"
+        <output
+            aria-atomic="true"
+            aria-live="polite"
+            className="pointer-events-none absolute top-24 left-1/2 z-20 w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 lg:top-28"
+        >
+            <AnimatePresence initial={false}>
+                {feedback ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: -14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
-                        <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-current/80">Encounter</p>
-                        <p className="mt-2 font-display text-lg text-current">{feedback.title}</p>
-                        <p className="mt-1 text-sm text-current/80" dir="auto">
-                            {feedback.detail}
-                        </p>
-                    </Card>
-                </motion.div>
-            ) : null}
-        </AnimatePresence>
+                        <Card className={`px-4 py-3 ${encounterToneClasses[feedback.tone]}`}>
+                            <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-current/80">
+                                Encounter
+                            </p>
+                            <p className="mt-2 font-display text-lg text-current">{feedback.title}</p>
+                            <p className="mt-1 text-sm text-current/80" dir="auto">
+                                {feedback.detail}
+                            </p>
+                        </Card>
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
+        </output>
     );
 };
 
@@ -261,6 +264,9 @@ const NavigationTopBar = memo(
                                 lockedHadith + currentTokens,
                                 level.winCondition.requiredHadith,
                             )}
+                            aria-live="polite"
+                            aria-atomic="true"
+                            role="status"
                         >
                             {lockedHadith + currentTokens}/{level.winCondition.requiredHadith} hadith
                         </Chip>

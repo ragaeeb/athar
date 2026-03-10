@@ -1,66 +1,36 @@
 import { expect, type Page, test } from '@playwright/test';
-import type { MapViewSnapshot as MapView, PerfSnapshot } from '@/features/debug/perf-metrics';
-
-type AtharPerfWindow = Window &
-    typeof globalThis & {
-        __atharDev__?: {
-            getMapView: () => MapView | null;
-            getLastPerfSnapshot: () => PerfSnapshot;
-            getPerfSnapshot: () => PerfSnapshot;
-            resetPerfMetrics: () => void;
-            setMapView: (view: {
-                bearing?: number;
-                center?: { lat: number; lng: number };
-                pitch?: number;
-                zoom?: number;
-            }) => void;
-            simulatePerfFrames: (options: {
-                durationMs: number;
-                moveX?: number;
-                moveZ?: number;
-                stepMs?: number;
-            }) => void;
-        };
-    };
-
-const waitForPerfBridge = (page: Page) =>
-    page.waitForFunction(
-        () =>
-            Boolean((window as AtharPerfWindow).__atharDev__?.getPerfSnapshot) &&
-            Boolean((window as AtharPerfWindow).__atharDev__?.getMapView) &&
-            Boolean((window as AtharPerfWindow).__atharDev__?.setMapView) &&
-            Boolean((window as AtharPerfWindow).__atharDev__?.getMapView()?.center),
-    );
+import {
+    getMapView,
+    getPerfSnapshot,
+    resetPerfMetrics,
+    setMapView,
+    simulatePerfFrames,
+    waitForMapView,
+    waitForPerfDevBridge,
+} from '@/test/e2e/dev-bridge';
 
 const startLevelOne = async (page: Page) => {
     await page.goto('/');
     await page.getByRole('button', { name: /begin level 1/i }).click();
     await expect(page).toHaveURL(/\/game\/level-1$/);
-    await waitForPerfBridge(page);
+    await waitForPerfDevBridge(page, 'level-1');
 };
 
 test('@perf manual zoom stays manual', async ({ page }) => {
     await startLevelOne(page);
 
-    const initialView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const initialView = await getMapView(page, 'level-1');
 
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.resetPerfMetrics();
+    await resetPerfMetrics(page, 'level-1');
+
+    await setMapView(page, 'level-1', {
+        zoom: (initialView?.zoom ?? 7.4) - 0.6,
     });
 
-    await page.evaluate(
-        (zoom) => {
-            (window as AtharPerfWindow).__atharDev__?.setMapView({ zoom });
-        },
-        (initialView?.zoom ?? 7.4) - 0.6,
-    );
+    await simulatePerfFrames(page, 'level-1', { durationMs: 200 });
 
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.simulatePerfFrames({ durationMs: 200 });
-    });
-
-    const snapshot = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getPerfSnapshot());
-    const currentView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const snapshot = await getPerfSnapshot(page, 'level-1');
+    const currentView = await getMapView(page, 'level-1');
 
     expect(snapshot?.camera.followCount).toBe(0);
     expect(snapshot?.camera.skippedDuringCooldownCount).toBeGreaterThan(0);
@@ -72,39 +42,27 @@ test('@perf manual zoom stays manual', async ({ page }) => {
 test('@perf manual pan away from the player stays manual while simulation advances', async ({ page }) => {
     await startLevelOne(page);
 
-    const initialView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const initialView = await getMapView(page, 'level-1');
     const manualCenter = {
         lat: (initialView?.center?.lat ?? 39.77) - 1.6,
         lng: (initialView?.center?.lng ?? 64.43) + 2.2,
     };
 
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.resetPerfMetrics();
+    await resetPerfMetrics(page, 'level-1');
+
+    await setMapView(page, 'level-1', {
+        center: manualCenter,
+        zoom: 8.1,
     });
 
-    await page.evaluate(
-        ({ center, zoom }) => {
-            (window as AtharPerfWindow).__atharDev__?.setMapView({
-                center,
-                zoom,
-            });
-        },
-        {
-            center: manualCenter,
-            zoom: 8.1,
-        },
-    );
-
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.simulatePerfFrames({
-            durationMs: 1_250,
-            moveX: 1,
-            moveZ: 0,
-        });
+    await simulatePerfFrames(page, 'level-1', {
+        durationMs: 1_250,
+        moveX: 1,
+        moveZ: 0,
     });
 
-    const snapshot = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getPerfSnapshot());
-    const currentView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const snapshot = await getPerfSnapshot(page, 'level-1');
+    const currentView = await getMapView(page, 'level-1');
 
     expect(snapshot?.camera.followCount).toBe(0);
     expect(snapshot?.camera.skippedDuringCooldownCount).toBeGreaterThan(0);
@@ -116,34 +74,28 @@ test('@perf manual pan away from the player stays manual while simulation advanc
 test('@perf zoomed-out travel stays bounded', async ({ page }) => {
     await startLevelOne(page);
 
-    const initialView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const initialView = await getMapView(page, 'level-1');
 
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.setMapView({
-            pitch: 58,
-            zoom: 6.4,
-        });
+    await setMapView(page, 'level-1', {
+        pitch: 58,
+        zoom: 6.4,
     });
 
-    await page.waitForFunction(() => {
-        const view = (window as AtharPerfWindow).__atharDev__?.getMapView();
-        return Math.abs((view?.pitch ?? 0) - 58) < 0.1 && Math.abs((view?.zoom ?? 0) - 6.4) < 0.01;
+    await waitForMapView(page, 'level-1', {
+        pitch: 58,
+        zoom: 6.4,
     });
 
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.resetPerfMetrics();
+    await resetPerfMetrics(page, 'level-1');
+
+    await simulatePerfFrames(page, 'level-1', {
+        durationMs: 1_250,
+        moveX: 1,
+        moveZ: 0,
     });
 
-    await page.evaluate(() => {
-        (window as AtharPerfWindow).__atharDev__?.simulatePerfFrames({
-            durationMs: 1_250,
-            moveX: 1,
-            moveZ: 0,
-        });
-    });
-
-    const snapshot = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getPerfSnapshot());
-    const currentView = await page.evaluate(() => (window as AtharPerfWindow).__atharDev__?.getMapView());
+    const snapshot = await getPerfSnapshot(page, 'level-1');
+    const currentView = await getMapView(page, 'level-1');
 
     console.info('Athar perf snapshot', JSON.stringify(snapshot));
 

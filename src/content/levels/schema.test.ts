@@ -42,4 +42,13 @@ describe('levelConfigSchema', () => {
             ).toBe(true);
         }
     });
+
+    it('rejects non-ambient audio cues for ambientCue', () => {
+        const result = levelConfigSchema.safeParse({
+            ...level1,
+            ambientCue: 'collect-token',
+        });
+
+        expect(result.success).toBe(false);
+    });
 });

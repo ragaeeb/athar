@@ -105,26 +105,19 @@ describe('MovementSystem', () => {
         });
     });
 
-    it('reverses horizontal movement while scramble is active', () => {
-        const state = createSimulationState();
-        state.player.scrambleUntil = state.nowMs + 1_000;
-        const resolveMovementStepSpy = vi.spyOn(movementUtils, 'resolveMovementStep').mockReturnValue({
-            bearing: -Math.PI / 2,
-            distanceMeters: 10,
-            nextCoords: { lat: 39.78, lng: 64.42 },
-            nextPositionMeters: { x: -10, z: 0 },
-        });
+    it('reverses horizontal movement while preserving forward movement while scramble is active', () => {
+        const baselineState = createSimulationState();
+        const scrambledState = createSimulationState();
+        scrambledState.player.scrambleUntil = scrambledState.nowMs + 1_000;
 
-        applyMovementStep(state, { moveX: 1, moveZ: 0 }, 50);
+        const baseline = applyMovementStep(baselineState, { moveX: 1, moveZ: 1 }, 50);
+        const scrambled = applyMovementStep(scrambledState, { moveX: 1, moveZ: 1 }, 50);
 
-        expect(resolveMovementStepSpy).toHaveBeenCalledWith({
-            delta: 0.05,
-            moveX: 1,
-            moveZ: 0,
-            origin: state.level.origin,
-            positionMeters: state.player.positionMeters,
-            scrambleMultiplier: -1,
-            speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * state.character.speedMultiplier,
-        });
+        expect(baseline.player.positionMeters.x).toBeGreaterThan(0);
+        expect(scrambled.player.positionMeters.x).toBeLessThan(0);
+        expect(baseline.player.positionMeters.z).toBeGreaterThan(0);
+        expect(scrambled.player.positionMeters.z).toBeGreaterThan(0);
+        expect(Math.abs(scrambled.player.positionMeters.x)).toBeCloseTo(Math.abs(baseline.player.positionMeters.x), 6);
+        expect(scrambled.player.positionMeters.z).toBeCloseTo(baseline.player.positionMeters.z, 6);
     });
 });

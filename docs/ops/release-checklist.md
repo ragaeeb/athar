@@ -9,6 +9,7 @@
 ## Required Validation
 
 - [ ] `bun run lint`
+- [ ] `bun run lint:content-governance` (advisory)
 - [ ] `bun run typecheck`
 - [ ] `bun run test`
 - [ ] `bun run test:e2e`

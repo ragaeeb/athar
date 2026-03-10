@@ -27,6 +27,15 @@ describe('GameLoop teacher encounter audio', () => {
         ).toBe(false);
     });
 
+    it('plays when the same teacher remains active but dialogue opens this frame', () => {
+        expect(
+            shouldPlayTeacherEncounterAudio(
+                { activeTeacher: teacher, dialogueOpen: false },
+                { activeTeacher: teacher, dialogueOpen: true },
+            ),
+        ).toBe(true);
+    });
+
     it('does not play before dialogue officially opens', () => {
         expect(
             shouldPlayTeacherEncounterAudio(

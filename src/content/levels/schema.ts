@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AUDIO_ASSETS } from '@/content/audio/cues';
+import { AMBIENT_AUDIO_CUES } from '@/content/audio/cues';
 import type { LevelConfig } from '@/content/levels/types';
 
 const coordsSchema = z.object({
@@ -80,13 +80,11 @@ const winConditionSchema = z.object({
 
 const mapStyleSchema = z.union([z.string().min(1), z.record(z.string(), z.unknown())]);
 
-const audioCueSchema = z.enum(
-    Object.keys(AUDIO_ASSETS) as [keyof typeof AUDIO_ASSETS, ...Array<keyof typeof AUDIO_ASSETS>],
-);
+const ambientAudioCueSchema = z.enum(AMBIENT_AUDIO_CUES);
 
 export const levelConfigSchema = z
     .object({
-        ambientCue: audioCueSchema,
+        ambientCue: ambientAudioCueSchema,
         completionContent: completionContentSchema,
         completionNarration: z.string().min(1),
         hadithTokenClusters: z.array(tokenClusterSchema),

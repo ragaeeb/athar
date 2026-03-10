@@ -6,6 +6,7 @@ Run all of these before a release candidate is considered green:
 
 ```bash
 bun run lint
+bun run lint:content-governance
 bun run typecheck
 bun run test
 bun run test:e2e
@@ -53,6 +54,12 @@ Expected outcome:
    - final route (Level 5)
 2. Confirm `Receive Hadith` preserves carried tokens into chapter tally.
 3. Confirm dialogue closes cleanly and does not leave movement stuck.
+4. Intentionally trigger an encounter/defeat flow in Levels 1, 3, and 5:
+   - trigger a hazard strong enough to produce defeat feedback
+   - confirm the defeat banner/copy appears and remains legible
+   - confirm token loss is reflected in carried tokens and chapter tally
+   - confirm defeat audio/visual cues fire
+   - confirm the flow still closes cleanly and chapter progression remains available after restart
 
 ### Camera and presentation
 

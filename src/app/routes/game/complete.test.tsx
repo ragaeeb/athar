@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LevelCompleteRoute } from '@/app/routes/game/complete';
@@ -117,6 +117,38 @@ describe('LevelCompleteRoute', () => {
         expect(screen.getByRole('link', { name: /return home/i })).toHaveAttribute('href', '/');
     });
 
+    it('keeps next-chapter teaser visible when unlock state is stale but does not show the CTA', () => {
+        useGameStore.setState({
+            currentLevel: 4,
+            lastCompletion: {
+                completionNarration: 'Eastern route completion narration.',
+                historicalNote: 'Eastern route historical note.',
+                levelId: 'level-4',
+                levelName: 'Level 4',
+                levelSubtitle: 'Persia and the East: Ray, Nishapur, Merv',
+                teachersMet: 1,
+                timeTakenSeconds: 133,
+                tokensLost: 9,
+                verifiedHadith: 52,
+            },
+            legacyVerifiedHadithBalance: 0,
+            selectedCharacter: 'bukhari',
+            totalHadithVerified: 118,
+            unlockedLevels: [1, 2, 3, 4],
+            verifiedHadithByLevel: { 'level-4': 52 },
+        });
+
+        render(
+            <MemoryRouter>
+                <LevelCompleteRoute />
+            </MemoryRouter>,
+        );
+
+        expect(screen.getByText(level5.teaser)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /begin the finale/i })).not.toBeInTheDocument();
+        expect(screen.queryByText(/All Chapters Complete/i)).not.toBeInTheDocument();
+    });
+
     it('renders a terminal legacy panel after the final chapter completes', () => {
         useGameStore.setState({
             currentLevel: 5,
@@ -153,8 +185,9 @@ describe('LevelCompleteRoute', () => {
         expect(screen.getByText(/Journey Complete/i)).toBeInTheDocument();
         expect(screen.getByText(/Legacy of the Journey/i)).toBeInTheDocument();
         expect(screen.getByText(/All Chapters Complete/i)).toBeInTheDocument();
-        expect(screen.getByText('178')).toBeInTheDocument();
-        expect(screen.getByText('5')).toBeInTheDocument();
+        const legacySummaryPanel = screen.getByTestId('legacy-summary-panel');
+        expect(within(legacySummaryPanel).getByText('178')).toBeInTheDocument();
+        expect(within(legacySummaryPanel).getByText('5')).toBeInTheDocument();
         expect(screen.queryByText(/Coming Soon/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /continue athar/i })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /return home/i })).toHaveAttribute('href', '/');

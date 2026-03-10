@@ -1,5 +1,5 @@
 import { useGLTF } from '@react-three/drei';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { extendGLTFSceneLoader, registerGLTFSceneModelSource } from '@/shared/three/gltf-loader-extensions';
 import type { GLTFSceneMaterialCustomizer, GLTFSceneMaterialMode } from '@/shared/three/gltf-materials';
 import { buildNormalizedSceneModel, disposeSceneModelInstance } from '@/shared/three/gltf-scene-model-utils';
@@ -24,13 +24,40 @@ export const GLTFSceneModel = ({
     targetFootprint,
 }: GLTFSceneModelProps) => {
     const gltf = useGLTF(modelPath, true, true, extendGLTFSceneLoader);
-    const { normalizedScene, normalizedScale, sceneOffset } = buildNormalizedSceneModel({
-        materialCustomizer,
-        materialMode,
-        scene: gltf.scene,
-        targetHeight,
-        ...(targetFootprint ? { targetFootprint } : {}),
-    });
+    const sceneModelRef = useRef<{
+        materialCustomizer: GLTFSceneMaterialCustomizer | undefined;
+        materialMode: GLTFSceneMaterialMode;
+        model: ReturnType<typeof buildNormalizedSceneModel>;
+        scene: typeof gltf.scene;
+        targetFootprint: number | undefined;
+        targetHeight: number;
+    } | null>(null);
+
+    if (
+        !sceneModelRef.current ||
+        sceneModelRef.current.scene !== gltf.scene ||
+        sceneModelRef.current.materialCustomizer !== materialCustomizer ||
+        sceneModelRef.current.materialMode !== materialMode ||
+        sceneModelRef.current.targetHeight !== targetHeight ||
+        sceneModelRef.current.targetFootprint !== targetFootprint
+    ) {
+        sceneModelRef.current = {
+            materialCustomizer,
+            materialMode,
+            model: buildNormalizedSceneModel({
+                materialCustomizer,
+                materialMode,
+                scene: gltf.scene,
+                targetHeight,
+                ...(targetFootprint ? { targetFootprint } : {}),
+            }),
+            scene: gltf.scene,
+            targetFootprint,
+            targetHeight,
+        };
+    }
+
+    const { normalizedScene, normalizedScale, sceneOffset } = sceneModelRef.current.model;
 
     useEffect(() => {
         registerGLTFSceneModelSource(modelPath, gltf.scene);

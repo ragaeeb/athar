@@ -152,4 +152,26 @@ describe('obstacle-rules', () => {
             scrambleDurationMs: 0,
         });
     });
+
+    it('keeps viper loss recoverable and bounded by carried hadith', () => {
+        const hadithTokens = 11;
+        const effect = resolveObstacleEncounterEffect({
+            character: {
+                guardLossMultiplier: CHARACTER_CONFIGS.bukhari.guardLossMultiplier,
+                obstacleDamageMultiplier: CHARACTER_CONFIGS.bukhari.obstacleDamageMultiplier,
+                rivalLossMultiplier: CHARACTER_CONFIGS.bukhari.rivalLossMultiplier,
+                scrambleDurationMultiplier: CHARACTER_CONFIGS.bukhari.scrambleDurationMultiplier,
+                speedMultiplier: CHARACTER_CONFIGS.bukhari.speedMultiplier,
+                tokenRadiusMultiplier: CHARACTER_CONFIGS.bukhari.tokenRadiusMultiplier,
+            },
+            hadithTokens,
+            obstacle: createObstacle('viper'),
+        });
+
+        expect(effect?.effect).toBe('scatter');
+        expect(effect?.lostCount).toBe(effect?.recoverableCount);
+        expect(effect?.recoverableCount).toBeGreaterThan(0);
+        expect(effect?.recoverableCount ?? 0).toBeLessThanOrEqual(hadithTokens);
+        expect(effect?.scrambleDurationMs).toBe(0);
+    });
 });

@@ -53,15 +53,19 @@ const resolveNearestObstacle = (state: SimulationState) =>
         .map((obstacle) => {
             const obstacleCoords = resolveObstaclePatrolCoords(obstacle, state.nowMs);
             const triggerRadius = obstacle.radius ?? OBSTACLE_TRIGGER_RADIUS_METERS;
+            const distanceMeters = worldDistanceInMeters(obstacleCoords, state.player.coords);
+            const distanceFromTriggerMeters = distanceMeters - triggerRadius;
 
             return {
-                distanceMeters: worldDistanceInMeters(obstacleCoords, state.player.coords),
+                distanceFromTriggerMeters,
+                distanceMeters,
+                distanceToTriggerEdgeMeters: Math.max(distanceFromTriggerMeters, 0),
                 obstacle,
                 obstacleCoords,
                 triggerRadius,
             };
         })
-        .sort((left, right) => left.distanceMeters - right.distanceMeters)[0];
+        .sort((left, right) => left.distanceToTriggerEdgeMeters - right.distanceToTriggerEdgeMeters)[0];
 
 const resolveSuppressionReason = ({
     effect,
@@ -121,8 +125,7 @@ export const resolveObstacleDiagnostic = (state: SimulationState): ObstacleDiagn
         return null;
     }
 
-    const withinDiagnosticRange =
-        nearestObstacle.distanceMeters <= nearestObstacle.triggerRadius + OBSTACLE_DIAGNOSTIC_MARGIN_METERS;
+    const withinDiagnosticRange = nearestObstacle.distanceToTriggerEdgeMeters <= OBSTACLE_DIAGNOSTIC_MARGIN_METERS;
 
     if (!withinDiagnosticRange) {
         return null;
@@ -141,7 +144,7 @@ export const resolveObstacleDiagnostic = (state: SimulationState): ObstacleDiagn
               obstacle: nearestObstacle.obstacle,
           });
     const onCooldown = isObstacleHitOnCooldown(state.player.lastHitAt, state.nowMs);
-    const withinTriggerRadius = nearestObstacle.distanceMeters <= nearestObstacle.triggerRadius;
+    const withinTriggerRadius = nearestObstacle.distanceFromTriggerMeters <= 0;
     const suppressionReason = resolveSuppressionReason({
         effect,
         hadithTokens: state.player.hadithTokens,
@@ -152,7 +155,7 @@ export const resolveObstacleDiagnostic = (state: SimulationState): ObstacleDiagn
     const eventName = resolveDiagnosticEventName(suppressionReason);
 
     return {
-        distanceFromTriggerMeters: nearestObstacle.distanceMeters - nearestObstacle.triggerRadius,
+        distanceFromTriggerMeters: nearestObstacle.distanceFromTriggerMeters,
         distanceMeters: nearestObstacle.distanceMeters,
         effect: effect?.effect ?? null,
         eventName,

@@ -335,6 +335,7 @@ describe('EncounterSystem', () => {
 
         expect(outsideResult.events.some((event) => event.type === 'dialogue-opened')).toBe(false);
         expect(insideResult.events.some((event) => event.type === 'dialogue-opened')).toBe(true);
+        // Teacher encounter audio is emitted only when dialogue is confirmed by the loop transition, not on open events.
         expect(insideResult.events.some((event) => event.type === 'audio' && event.cue === 'teacher-encounter')).toBe(
             false,
         );

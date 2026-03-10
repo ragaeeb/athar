@@ -35,13 +35,21 @@ class AtharAudioManager {
 
     private enabled = true;
 
+    private bootstrapRequest: Promise<void> | null = null;
+
     bootstrap() {
         if (typeof window === 'undefined') {
             this.enabled = false;
             return;
         }
 
-        void this.verifyConfiguredAssets();
+        if (this.assetCheckState === 'ready' || this.assetCheckState === 'disabled' || this.bootstrapRequest) {
+            return;
+        }
+
+        this.bootstrapRequest = this.verifyConfiguredAssets().finally(() => {
+            this.bootstrapRequest = null;
+        });
     }
 
     setEnabled(value: boolean) {
@@ -232,6 +240,16 @@ class AtharAudioManager {
 
     setLoopActive(cue: AudioCue, active: boolean) {
         this.runWhenReady(() => {
+            if (cue.startsWith('ambient')) {
+                if (active) {
+                    this.setAmbient(cue);
+                } else if (this.ambientCue === cue) {
+                    this.stopAmbient();
+                }
+
+                return;
+            }
+
             const entry = this.ensureCue(cue);
             if (!entry || !LOOPING_CUES.has(cue)) {
                 return;
@@ -266,6 +284,11 @@ class AtharAudioManager {
                 return;
             }
 
+            const entry = this.ensureCue(cue);
+            if (!entry) {
+                return;
+            }
+
             if (this.ambientCue) {
                 const current = this.registry.get(this.ambientCue);
                 if (current) {
@@ -281,10 +304,6 @@ class AtharAudioManager {
             }
 
             this.ambientCue = cue;
-            const entry = this.ensureCue(cue);
-            if (!entry) {
-                return;
-            }
 
             const pendingStopTimeout = this.ambientStopTimeouts.get(cue);
             if (pendingStopTimeout !== undefined) {

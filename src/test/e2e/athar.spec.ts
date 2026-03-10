@@ -1,13 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-
-type AtharDevWindow = Window &
-    typeof globalThis & {
-        __atharDev__?: {
-            grantTokens: (count?: number) => void;
-            teleportToTeacher: () => void;
-            teleportToFinalMilestone: () => void;
-        };
-    };
+import { grantTokens, teleportToFinalMilestone, teleportToTeacher, waitForLevelDevBridge } from '@/test/e2e/dev-bridge';
 
 const clickDialogueAction = async (page: Page) => {
     const dialogue = page.getByRole('dialog');
@@ -19,39 +11,22 @@ const clickDialogueAction = async (page: Page) => {
     await expect(dialogue).toBeHidden();
 };
 
-const waitForDevBridge = (page: Page) => page.waitForFunction(() => Boolean((window as AtharDevWindow).__atharDev__));
-
-const grantTokens = (page: Page, count: number) =>
-    page.evaluate((value) => {
-        (window as AtharDevWindow).__atharDev__?.grantTokens(value);
-    }, count);
-
-const teleportToTeacher = (page: Page) =>
-    page.evaluate(() => {
-        (window as AtharDevWindow).__atharDev__?.teleportToTeacher();
-    });
-
-const teleportToFinalMilestone = (page: Page) =>
-    page.evaluate(() => {
-        (window as AtharDevWindow).__atharDev__?.teleportToFinalMilestone();
-    });
-
 test('completes the deterministic level one through level five smoke path', async ({ page }) => {
+    test.slow();
     await page.goto('/');
 
     await page.getByRole('button', { name: /abu dawud al-sijistani/i }).click();
     await page.getByRole('button', { name: /begin level 1/i }).click();
 
     await expect(page).toHaveURL(/\/game\/level-1$/);
+    await waitForLevelDevBridge(page, 'level-1');
 
-    await waitForDevBridge(page);
-
-    await grantTokens(page, 30);
-    await teleportToTeacher(page);
+    await grantTokens(page, 'level-1', 30);
+    await teleportToTeacher(page, 'level-1');
 
     await clickDialogueAction(page);
 
-    await teleportToFinalMilestone(page);
+    await teleportToFinalMilestone(page, 'level-1');
 
     await expect(page.getByRole('button', { name: /review the journey/i })).toBeVisible();
     await page.getByRole('button', { name: /review the journey/i }).click();
@@ -61,17 +36,16 @@ test('completes the deterministic level one through level five smoke path', asyn
     await page.getByRole('link', { name: /enter the hijaz/i }).click();
 
     await expect(page).toHaveURL(/\/game\/level-2$/);
-
-    await waitForDevBridge(page);
+    await waitForLevelDevBridge(page, 'level-2');
 
     for (const tokenGrant of [12, 12, 12]) {
-        await grantTokens(page, tokenGrant);
-        await teleportToTeacher(page);
+        await grantTokens(page, 'level-2', tokenGrant);
+        await teleportToTeacher(page, 'level-2');
 
         await clickDialogueAction(page);
     }
 
-    await teleportToFinalMilestone(page);
+    await teleportToFinalMilestone(page, 'level-2');
 
     const reviewHijazRouteButton = page.getByRole('button', { name: /review the hijaz route/i });
     await expect(reviewHijazRouteButton).toBeVisible();
@@ -83,16 +57,15 @@ test('completes the deterministic level one through level five smoke path', asyn
     await page.getByRole('link', { name: /enter iraq/i }).click();
 
     await expect(page).toHaveURL(/\/game\/level-3$/);
-
-    await waitForDevBridge(page);
+    await waitForLevelDevBridge(page, 'level-3');
 
     for (const tokenGrant of [16, 16, 16]) {
-        await grantTokens(page, tokenGrant);
-        await teleportToTeacher(page);
+        await grantTokens(page, 'level-3', tokenGrant);
+        await teleportToTeacher(page, 'level-3');
         await clickDialogueAction(page);
     }
 
-    await teleportToFinalMilestone(page);
+    await teleportToFinalMilestone(page, 'level-3');
 
     const reviewIraqRouteButton = page.getByRole('button', { name: /review the iraq route/i });
     await expect(reviewIraqRouteButton).toBeVisible();
@@ -104,13 +77,12 @@ test('completes the deterministic level one through level five smoke path', asyn
     await page.getByRole('link', { name: /return east/i }).click();
 
     await expect(page).toHaveURL(/\/game\/level-4$/);
+    await waitForLevelDevBridge(page, 'level-4');
 
-    await waitForDevBridge(page);
-
-    await grantTokens(page, 52);
-    await teleportToTeacher(page);
+    await grantTokens(page, 'level-4', 52);
+    await teleportToTeacher(page, 'level-4');
     await clickDialogueAction(page);
-    await teleportToFinalMilestone(page);
+    await teleportToFinalMilestone(page, 'level-4');
 
     const reviewEasternRouteButton = page.getByRole('button', { name: /review the eastern route/i });
     await expect(reviewEasternRouteButton).toBeVisible();
@@ -122,16 +94,15 @@ test('completes the deterministic level one through level five smoke path', asyn
     await page.getByRole('link', { name: /begin the finale/i }).click();
 
     await expect(page).toHaveURL(/\/game\/level-5$/);
-
-    await waitForDevBridge(page);
+    await waitForLevelDevBridge(page, 'level-5');
 
     for (const tokenGrant of [30, 30]) {
-        await grantTokens(page, tokenGrant);
-        await teleportToTeacher(page);
+        await grantTokens(page, 'level-5', tokenGrant);
+        await teleportToTeacher(page, 'level-5');
         await clickDialogueAction(page);
     }
 
-    await teleportToFinalMilestone(page);
+    await teleportToFinalMilestone(page, 'level-5');
 
     const reviewLegacyButton = page.getByRole('button', { name: /review the legacy/i });
     await expect(reviewLegacyButton).toBeVisible();

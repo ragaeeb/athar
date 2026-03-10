@@ -48,4 +48,46 @@ describe('TouchControls', () => {
         });
         expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0 });
     });
+
+    it('releases pointer capture when a pointer cancel interrupts touch movement', async () => {
+        render(<TouchControls />);
+
+        const pad = await screen.findByTestId('touch-movement-pad');
+        vi.spyOn(pad, 'getBoundingClientRect').mockReturnValue({
+            bottom: 112,
+            height: 112,
+            left: 0,
+            right: 112,
+            toJSON: () => ({}),
+            top: 0,
+            width: 112,
+            x: 0,
+            y: 0,
+        });
+
+        const setPointerCapture = vi.fn();
+        const releasePointerCapture = vi.fn();
+        Object.defineProperty(pad, 'setPointerCapture', {
+            configurable: true,
+            value: setPointerCapture,
+        });
+        Object.defineProperty(pad, 'releasePointerCapture', {
+            configurable: true,
+            value: releasePointerCapture,
+        });
+
+        fireEvent.pointerDown(pad, {
+            buttons: 1,
+            clientX: 112,
+            clientY: 56,
+            pointerId: 9,
+        });
+        expect(setPointerCapture).toHaveBeenCalledWith(9);
+        expect(getMovementInputSnapshot().moveX).toBeGreaterThan(0.9);
+
+        fireEvent.pointerCancel(pad, { pointerId: 9 });
+
+        expect(releasePointerCapture).toHaveBeenCalledWith(9);
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0 });
+    });
 });

@@ -11,12 +11,18 @@ type HazardTriggeredEvent = Extract<SimulationEvent, { type: 'hazard-triggered' 
 
 const formatLostHadithDetail = (lostCount: number, action: string) =>
     lostCount === 1 ? `${action} 1 carried hadith.` : `${action} ${lostCount} carried hadith.`;
+const formatWashedHadithDetail = (lostCount: number) =>
+    lostCount === 1
+        ? '1 carried hadith was washed back onto the road.'
+        : `${lostCount} carried hadith were washed back onto the road.`;
 
 export const resolveEncounterFeedback = (event: HazardTriggeredEvent): EncounterFeedback => {
     switch (event.effect) {
         case 'confiscate':
             return {
-                detail: formatLostHadithDetail(event.lostCount, 'Confiscated'),
+                detail:
+                    formatLostHadithDetail(event.lostCount, 'Confiscated') +
+                    (event.scrambleDurationMs > 0 ? ' Your controls are briefly scrambled.' : ''),
                 durationMs: 3_400,
                 title: event.obstacleLabel,
                 tone: 'danger',
@@ -53,7 +59,7 @@ export const resolveEncounterFeedback = (event: HazardTriggeredEvent): Encounter
             return {
                 detail:
                     event.lostCount > 0
-                        ? `${formatLostHadithDetail(event.lostCount, 'Washed back onto the road')} Controls are scrambled while the flood pressure lasts.`
+                        ? `${formatWashedHadithDetail(event.lostCount)} Controls are scrambled while the flood pressure lasts.`
                         : 'The flood distorts the route and throws off your movement.',
                 durationMs: 3_000,
                 title: event.obstacleLabel,

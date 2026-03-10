@@ -20,4 +20,21 @@ describe('resolveLevelLightingRig', () => {
         expect(rig.directionalColor).toBe('#ffbf87');
         expect(rig.directionalIntensity).toBeLessThan(Math.PI);
     });
+
+    it('falls back to the park daytime preset outside city ambience', () => {
+        const rig = resolveLevelLightingRig({
+            ambientCue: 'ambient-desert',
+            lighting: {
+                hour: 12,
+                label: 'Noon',
+                minute: 0,
+            },
+            origin: level2.origin,
+        });
+
+        expect(rig.environmentPreset).toBe('park');
+        expect(rig.directionalIntensity).toBe(1.26 * Math.PI);
+        expect(rig.ambientIntensity).toBe(0.78 * Math.PI);
+        expect(rig.sunPosition).toHaveLength(3);
+    });
 });

@@ -34,11 +34,8 @@ export const LevelCompleteRoute = () => {
 
     const completedLevel = getLevelById(summary.levelId);
     const completionContent = completedLevel?.completionContent ?? DEFAULT_LEVEL_COMPLETION_CONTENT;
-    const nextLevel = completedLevel
-        ? unlockedLevels
-              .map((order) => getLevelById(`level-${order}`))
-              .find((level) => level?.order === completedLevel.order + 1)
-        : undefined;
+    const nextLevel = completedLevel ? getLevelById(`level-${completedLevel.order + 1}`) : undefined;
+    const canOpenNextLevel = nextLevel != null && unlockedLevels.includes(nextLevel.order) && nextLevel.playable;
     const completedChapterCount = Object.keys(verifiedHadithByLevel).length;
 
     return (
@@ -99,7 +96,11 @@ export const LevelCompleteRoute = () => {
                         </div>
                     </Card>
                 ) : completedLevel ? (
-                    <Card tone="muted" className="mt-6 rounded-[1.75rem] border border-gold-400/18 bg-gold-400/6 p-6">
+                    <Card
+                        tone="muted"
+                        className="mt-6 rounded-[1.75rem] border border-gold-400/18 bg-gold-400/6 p-6"
+                        data-testid="legacy-summary-panel"
+                    >
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="max-w-2xl">
                                 <p className="font-display text-lg text-gold-200">
@@ -130,7 +131,7 @@ export const LevelCompleteRoute = () => {
                 ) : null}
 
                 <div className="mt-8 flex flex-wrap gap-3">
-                    {nextLevel?.playable ? (
+                    {nextLevel && canOpenNextLevel ? (
                         <Link to={`/game/${nextLevel.id}`} className={getButtonClassName({})}>
                             {completionContent.nextChapterActionLabel}
                         </Link>

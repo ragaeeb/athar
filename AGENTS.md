@@ -9,6 +9,7 @@ This file is an onboarding reference for new AI agents working in the repo. It s
 ## Read First
 
 - [README.md](README.md)
+- [docs/revised-plan.md](docs/revised-plan.md)
 - [docs/architecture.md](docs/architecture.md)
 
 ## Stack

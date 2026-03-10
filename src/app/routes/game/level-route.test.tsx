@@ -12,8 +12,9 @@ import { resetLevelStore, useLevelStore } from '@/features/gameplay/state/level.
 import { resetPlayerStore, usePlayerStore } from '@/features/gameplay/state/player.store';
 import { resetGameplaySessionStore, useGameplaySessionStore } from '@/features/gameplay/state/session.store';
 
-const { evictLevelSceneAssetsMock } = vi.hoisted(() => ({
+const { evictLevelSceneAssetsMock, preloadObstacleModelsForLevelMock } = vi.hoisted(() => ({
     evictLevelSceneAssetsMock: vi.fn(),
+    preloadObstacleModelsForLevelMock: vi.fn(),
 }));
 
 vi.mock('@/features/audio/audio-manager', () => ({
@@ -30,6 +31,7 @@ vi.mock('@/features/debug/dev-tools', () => ({
 
 vi.mock('@/content/models/level-scene-assets', () => ({
     evictLevelSceneAssets: evictLevelSceneAssetsMock,
+    preloadObstacleModelsForLevel: preloadObstacleModelsForLevelMock,
 }));
 
 vi.mock('@/features/gameplay/controllers/PlayerController', () => ({
@@ -169,6 +171,7 @@ describe('GameLevelRoute', () => {
         const view = renderRoute();
 
         await screen.findByRole('button', { name: /pause journey/i });
+        expect(preloadObstacleModelsForLevelMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'level-1' }));
 
         view.unmount();
 

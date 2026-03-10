@@ -23,6 +23,10 @@ type ResolveObstacleEffectInput = {
     obstacle: ObstacleConfig;
 };
 
+const assertUnreachable = (value: never): never => {
+    throw new Error(`Unhandled obstacle type: ${String(value)}`);
+};
+
 const clampMinimumLoss = (hadithTokens: number, minimumLoss: number) =>
     Math.min(hadithTokens, hadithTokens > 1 ? minimumLoss : 1);
 
@@ -118,24 +122,25 @@ export const resolveObstacleEncounterEffect = ({
                 recoverableCount: 0,
                 scrambleDurationMs: 0,
             };
-        case 'viper':
+        case 'viper': {
             if (hadithTokens <= 0) {
                 return null;
             }
 
+            const scatteredLoss = resolveScaledLoss({
+                hadithTokens,
+                multiplier: character.obstacleDamageMultiplier,
+                ratio: VIPER_SCATTER_RATIO,
+            });
+
             return {
                 effect: 'scatter',
-                lostCount: resolveScaledLoss({
-                    hadithTokens,
-                    multiplier: character.obstacleDamageMultiplier,
-                    ratio: VIPER_SCATTER_RATIO,
-                }),
-                recoverableCount: resolveScaledLoss({
-                    hadithTokens,
-                    multiplier: character.obstacleDamageMultiplier,
-                    ratio: VIPER_SCATTER_RATIO,
-                }),
+                lostCount: scatteredLoss,
+                recoverableCount: scatteredLoss,
                 scrambleDurationMs: 0,
             };
+        }
+        default:
+            return assertUnreachable(obstacle.type);
     }
 };

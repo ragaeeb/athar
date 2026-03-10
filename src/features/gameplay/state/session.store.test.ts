@@ -33,9 +33,14 @@ describe('session.store', () => {
 
         useGameplaySessionStore.getState().clearEncounterFeedback();
         expect(useGameplaySessionStore.getState().encounterFeedback).toBeNull();
+
+        resetGameplaySessionStore();
+        expect(useGameplaySessionStore.getState().encounterFeedback).toBeNull();
+        expect(useGameplaySessionStore.getState().defeat).toBeNull();
+        expect(useGameplaySessionStore.getState().paused).toBe(false);
     });
 
-    it('stores defeat state and pauses the session until reset', () => {
+    it('stores defeat state and pauses the session until the session is reset', () => {
         useGameplaySessionStore.getState().showDefeat({
             detail: 'The scorpion struck before escape.',
             title: 'Scorpion Ambush',
@@ -49,5 +54,11 @@ describe('session.store', () => {
 
         useGameplaySessionStore.getState().clearDefeat();
         expect(useGameplaySessionStore.getState().defeat).toBeNull();
+        expect(useGameplaySessionStore.getState().paused).toBe(true);
+
+        resetGameplaySessionStore();
+        expect(useGameplaySessionStore.getState().defeat).toBeNull();
+        expect(useGameplaySessionStore.getState().encounterFeedback).toBeNull();
+        expect(useGameplaySessionStore.getState().paused).toBe(false);
     });
 });

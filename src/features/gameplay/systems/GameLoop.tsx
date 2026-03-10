@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { AudioCue } from '@/content/audio/cues';
 import { CHARACTER_CONFIGS } from '@/content/characters/characters';
 import { audioManager } from '@/features/audio/audio-manager';
-import { atharDebugLog } from '@/features/debug/debug';
+import { atharDebugLog, isAtharDebugEnabled } from '@/features/debug/debug';
 import { recordFrameDeltaMs, recordPlayerMovementTick } from '@/features/debug/perf-metrics';
 import { getActiveSpikeWatch } from '@/features/debug/spike-watch';
 import { clearInputState, getMovementInputSnapshot } from '@/features/gameplay/controllers/input-state';
@@ -34,6 +34,7 @@ const GAME_LOOP_SPIKE_THRESHOLD_MS = 25;
 const WATCHED_GAME_LOOP_SPIKE_THRESHOLD_MS = 22;
 const FOOTSTEP_AUDIO_CUE: AudioCue = 'footsteps-walk';
 const TEACHER_ENCOUNTER_AUDIO_CUE: AudioCue = 'teacher-encounter';
+const OBSTACLE_DIAGNOSTIC_SAMPLE_INTERVAL_MS = 120;
 
 const syncFootstepLoop = (active: boolean) => {
     audioManager.setLoopActive(FOOTSTEP_AUDIO_CUE, active);
@@ -47,7 +48,17 @@ type ObstacleDiagnosticLogState = Pick<ObstacleDiagnostic, 'obstacleId' | 'signa
 const logObstacleDiagnostics = (
     state: SimulationState,
     lastDiagnosticRef: { current: ObstacleDiagnosticLogState | null },
+    lastDiagnosticCheckAtMsRef: { current: number },
 ) => {
+    if (!isAtharDebugEnabled()) {
+        return;
+    }
+
+    if (state.nowMs - lastDiagnosticCheckAtMsRef.current < OBSTACLE_DIAGNOSTIC_SAMPLE_INTERVAL_MS) {
+        return;
+    }
+
+    lastDiagnosticCheckAtMsRef.current = state.nowMs;
     const diagnostic = resolveObstacleDiagnostic(state);
 
     if (!diagnostic) {
@@ -200,9 +211,10 @@ type GameLoopProps = {
 export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
     const levelId = useLevelStore((state) => state.config?.id);
     const paused = useGameplaySessionStore((state) => state.paused);
-    const runnerRef = useRef<SimulationRunner>(createSimulationRunner({ variableTimestep: true }));
+    const runnerRef = useRef<SimulationRunner>(createSimulationRunner());
     const lastFrameAtMsRef = useRef(performance.now());
     const obstacleDiagnosticRef = useRef<ObstacleDiagnosticLogState | null>(null);
+    const obstacleDiagnosticCheckAtMsRef = useRef(0);
     const simulationNowMsRef = useRef(0);
 
     useEffect(() => {
@@ -211,6 +223,7 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
         lastFrameAtMsRef.current = performance.now();
         simulationNowMsRef.current = initialNowMs;
         setSimulationNowMs(initialNowMs);
+        obstacleDiagnosticCheckAtMsRef.current = 0;
 
         return () => {
             syncFootstepLoop(false);
@@ -240,7 +253,7 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
             return;
         }
 
-        logObstacleDiagnostics(state, obstacleDiagnosticRef);
+        logObstacleDiagnostics(state, obstacleDiagnosticRef, obstacleDiagnosticCheckAtMsRef);
 
         const result = runnerRef.current.advance({
             frameDeltaMs,

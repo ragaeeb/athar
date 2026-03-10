@@ -66,7 +66,8 @@ export const TouchControls = () => {
                 <div
                     data-testid="touch-movement-pad"
                     className="relative mt-3 size-28 touch-none rounded-full border border-white/12 bg-white/5"
-                    onPointerCancel={() => {
+                    onPointerCancel={(event) => {
+                        event.currentTarget.releasePointerCapture?.(event.pointerId);
                         clearTouchMovementInput();
                         setKnobPosition({ x: 0, y: 0 });
                     }}

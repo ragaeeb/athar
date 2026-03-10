@@ -73,6 +73,7 @@ bun run build
 
 ## Project Docs
 
+- [Revised Plan](./docs/revised-plan.md)
 - [Architecture](./docs/architecture.md)
 - [Browser Support Matrix](./docs/ops/browser-support-matrix.md)
 - [QA Regression Checklist](./docs/ops/qa-regression-checklist.md)

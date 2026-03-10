@@ -65,6 +65,10 @@ const prepareCharacterSceneNode = (child: unknown, materialCache: Map<Material, 
     child.receiveShadow = false;
 
     const materials = Array.isArray(child.material) ? child.material : [child.material];
+    if (materials.length === 0 || materials[0] === undefined) {
+        return;
+    }
+
     child.material = Array.isArray(child.material)
         ? materials.map((material) => cloneCharacterMaterial(material, materialCache))
         : cloneCharacterMaterial(materials[0], materialCache);
@@ -72,10 +76,30 @@ const prepareCharacterSceneNode = (child: unknown, materialCache: Map<Material, 
 
 const CharacterModel = ({ modelPath }: CharacterModelProps) => {
     const gltf = useGLTF(modelPath);
-    const validAnimations = filterValidAnimationClips(gltf.animations);
-    const scene = clone(gltf.scene);
-    const materialCache = new Map<Material, Material>();
-    scene.traverse((child) => prepareCharacterSceneNode(child, materialCache));
+    const preparedSceneRef = useRef<{
+        animations: typeof gltf.animations;
+        scene: ReturnType<typeof clone>;
+        sourceScene: typeof gltf.scene;
+        validAnimations: ReturnType<typeof filterValidAnimationClips>;
+    } | null>(null);
+
+    if (
+        !preparedSceneRef.current ||
+        preparedSceneRef.current.sourceScene !== gltf.scene ||
+        preparedSceneRef.current.animations !== gltf.animations
+    ) {
+        const clonedScene = clone(gltf.scene);
+        const materialCache = new Map<Material, Material>();
+        clonedScene.traverse((child) => prepareCharacterSceneNode(child, materialCache));
+        preparedSceneRef.current = {
+            animations: gltf.animations,
+            scene: clonedScene,
+            sourceScene: gltf.scene,
+            validAnimations: filterValidAnimationClips(gltf.animations),
+        };
+    }
+
+    const { scene, validAnimations } = preparedSceneRef.current;
     const { actions } = useAnimations(validAnimations, scene);
     const { animationNames, idleAnimation, locomotionAnimation } = resolveCharacterAnimationNames(validAnimations);
     const activeAnimationNameRef = useRef<string | null>(null);

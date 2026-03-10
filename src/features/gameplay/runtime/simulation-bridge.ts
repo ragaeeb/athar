@@ -29,10 +29,10 @@ export const getAuthoritativePlayerSample = (): PlayerSample | null => bridge.cu
 export type InterpolatedPlayerState = PlayerSample & { interpolated: boolean };
 
 export const drainForPresentation = (
-    _lastRenderedSequence: number,
+    lastRenderedSequence: number,
 ): { sequence: number; state: InterpolatedPlayerState } | null => {
     const { current, sequence } = bridge;
-    if (!current) {
+    if (!current || sequence <= lastRenderedSequence) {
         return null;
     }
 

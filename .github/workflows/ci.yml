@@ -7,6 +7,46 @@ on:
       - main
 
 jobs:
+  asset-manifest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify docs asset manifest matches public assets
+        run: |
+          set -euo pipefail
+
+          manifest="docs/assets/asset-manifest.md"
+          tmp_public="$(mktemp)"
+          tmp_manifest="$(mktemp)"
+          trap 'rm -f "$tmp_public" "$tmp_manifest"' EXIT
+
+          find public -type f | sort > "$tmp_public"
+
+          python -c "import pathlib,re,sys; text=pathlib.Path(sys.argv[1]).read_text(); [print(path) for path in re.findall(r'`(public/[^`]+)`', text)]" "$manifest" | sort -u > "$tmp_manifest"
+
+          echo 'Files under public/ not listed in the manifest:'
+          missing_files="$(comm -23 "$tmp_public" "$tmp_manifest" || true)"
+          if [ -n "$missing_files" ]; then
+            echo "$missing_files"
+          fi
+
+          echo
+          echo 'Manifest entries without a matching file:'
+          stale_entries="$(comm -13 "$tmp_public" "$tmp_manifest" || true)"
+          if [ -n "$stale_entries" ]; then
+            echo "$stale_entries"
+          fi
+
+          if [ -n "$missing_files$stale_entries" ]; then
+            echo
+            echo "Asset manifest drift detected."
+            exit 1
+          fi
+
   build-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -28,8 +68,43 @@ jobs:
         run: bun run lint
 
       - name: Advisory content-governance check
-        run: bun run lint:content-governance
+        id: content_governance
+        run: |
+          set +e
+
+          report_file="content-governance-report.txt"
+          bun run lint:content-governance > "$report_file" 2>&1
+          exit_code=$?
+
+          {
+            echo "### Advisory content-governance check"
+            if [ "$exit_code" -eq 0 ]; then
+              echo
+              echo "- ✅ No issues found"
+            else
+              echo
+              echo "- ⚠️ Advisory issues detected (non-blocking)"
+              echo
+              echo "<details><summary>First report lines</summary>"
+              echo
+              sed -n '1,40p' "$report_file"
+              echo
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit "$exit_code"
         continue-on-error: true
+
+      - name: Upload content-governance report
+        if: steps.content_governance.outputs.exit_code != '0'
+        uses: actions/upload-artifact@v6
+        with:
+          name: content-governance-report
+          path: content-governance-report.txt
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Run unit and integration tests
         run: bun run test --coverage

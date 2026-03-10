@@ -12,7 +12,6 @@ import { getObstacleVisualDescriptor, resolveObstacleOrbitPosition } from '@/fea
 import { OBSTACLE_VISUAL_SCALE } from '@/shared/constants/gameplay';
 import { metersOffsetFromCoords } from '@/shared/geo';
 import { GLTFSceneModel } from '@/shared/three/GLTFSceneModel';
-import { preloadGLTFSceneModel } from '@/shared/three/gltf-loader-extensions';
 
 type ObstacleEntityProps = {
     obstacle: ObstacleConfig;
@@ -281,8 +280,14 @@ const updateObstacleVerticalOffset = (group: Group, obstacle: ObstacleConfig, el
     group.position.y = 0;
 };
 
-const updateScorpionMarker = (marker: Group, obstacle: ObstacleConfig) => {
-    const playerOffsetMeters = metersOffsetFromCoords(getPlayerRuntimeState().coords, obstacle.coords);
+const updateScorpionMarker = (marker: Group, obstacle: ObstacleConfig, parentRotationY: number) => {
+    const worldOffset = metersOffsetFromCoords(getPlayerRuntimeState().coords, obstacle.coords);
+    const cos = Math.cos(-parentRotationY);
+    const sin = Math.sin(-parentRotationY);
+    const playerOffsetMeters = {
+        x: worldOffset.x * cos - worldOffset.z * sin,
+        z: worldOffset.x * sin + worldOffset.z * cos,
+    };
     const playerDistanceMeters = Math.hypot(playerOffsetMeters.x, playerOffsetMeters.z);
     const aggroDistanceMeters = Math.max(obstacle.radius ?? 0, 1) * 1.45;
     const lungeStrength =
@@ -305,13 +310,18 @@ const updateScorpionMarker = (marker: Group, obstacle: ObstacleConfig) => {
     marker.position.z += (lungeOffset.z - marker.position.z) * 0.18;
 
     if (playerDistanceMeters > 0) {
-        marker.rotation.y = Math.atan2(normalizedDirection.x, normalizedDirection.z);
+        marker.rotation.y = Math.atan2(worldOffset.x, worldOffset.z) - parentRotationY;
     }
 };
 
-const updateObstacleMarker = (marker: Group, obstacle: ObstacleConfig, elapsedTime: number) => {
+const updateObstacleMarker = (
+    marker: Group,
+    obstacle: ObstacleConfig,
+    elapsedTime: number,
+    parentRotationY: number,
+) => {
     if (obstacle.type === 'scorpion') {
-        updateScorpionMarker(marker, obstacle);
+        updateScorpionMarker(marker, obstacle, parentRotationY);
         return;
     }
 
@@ -340,7 +350,7 @@ export const ObstacleEntity = ({ obstacle }: ObstacleEntityProps) => {
             return;
         }
 
-        updateObstacleMarker(markerRef.current, obstacle, state.clock.elapsedTime);
+        updateObstacleMarker(markerRef.current, obstacle, state.clock.elapsedTime, groupRef.current.rotation.y);
     });
 
     return (
@@ -354,9 +364,3 @@ export const ObstacleEntity = ({ obstacle }: ObstacleEntityProps) => {
         </group>
     );
 };
-
-for (const obstacleModel of Object.values(OBSTACLE_MODELS)) {
-    if (obstacleModel) {
-        preloadGLTFSceneModel(obstacleModel.modelPath);
-    }
-}

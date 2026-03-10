@@ -175,4 +175,37 @@ describe('resolveObstacleDiagnostic', () => {
         expect(diagnostic?.suppressionReason).toBe('outside-trigger-radius');
         expect(diagnostic?.withinTriggerRadius).toBe(false);
     });
+
+    it('prefers the obstacle with the nearest trigger edge when radii differ', () => {
+        const smallRadiusObstacle = createObstacle({
+            coords: { lat: 0.28, lng: 0 },
+            id: 'small-radius',
+            label: 'Small Radius',
+            radius: 10_000,
+            type: 'guard',
+        });
+        const largeRadiusObstacle = createObstacle({
+            coords: { lat: 0.32, lng: 0 },
+            id: 'large-radius',
+            label: 'Large Radius',
+            radius: 40_000,
+            type: 'guard',
+        });
+        const state = createState({
+            hadithTokens: 8,
+            obstacle: smallRadiusObstacle,
+            playerCoords: { lat: 0, lng: 0 },
+        });
+
+        const diagnostic = resolveObstacleDiagnostic({
+            ...state,
+            level: {
+                ...state.level,
+                obstacles: [smallRadiusObstacle, largeRadiusObstacle],
+            },
+        });
+
+        expect(diagnostic?.obstacleId).toBe('large-radius');
+        expect(diagnostic?.withinTriggerRadius).toBe(true);
+    });
 });

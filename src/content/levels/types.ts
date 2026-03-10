@@ -1,4 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
+import type { AmbientAudioCue } from '@/content/audio/cues';
 
 export type Coords = {
     lat: number;
@@ -104,7 +105,7 @@ export type LevelConfig = {
     completionNarration: string;
     completionContent: LevelCompletionContent;
     historicalNote: string;
-    ambientCue: 'ambient-desert' | 'ambient-city';
+    ambientCue: AmbientAudioCue;
 };
 
 export type ObjectiveKind = 'hadith' | 'teacher' | 'milestone';

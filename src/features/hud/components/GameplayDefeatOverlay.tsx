@@ -11,7 +11,7 @@ type GameplayDefeatOverlayProps = {
 
 export const GameplayDefeatOverlay = ({ defeat, onRestart }: GameplayDefeatOverlayProps) => (
     <Overlay>
-        <Card tone="reward" className="w-full max-w-2xl rounded-[2rem] p-8 text-center">
+        <Card tone="default" className="w-full max-w-2xl rounded-[2rem] p-8 text-center">
             <p className="font-display text-sm uppercase tracking-[0.4em] text-gold-400">Route Broken</p>
             <h2 className="mt-4 font-display text-4xl text-sand-50">{defeat.title}</h2>
             <p className="mt-4 text-sand-100/75">{defeat.detail}</p>

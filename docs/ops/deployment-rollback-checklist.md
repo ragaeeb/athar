@@ -27,7 +27,8 @@
 4. Run post-deploy smoke:
    - home page loads
    - Level 1 route loads
-   - completion route from a known save works
+   - deterministic five-chapter smoke path completes (or at minimum load Level 4/5 from a known save and complete it)
+   - completion route from a known save works for both early and late chapters
    - no immediate blocking runtime overlay appears
 
 ## Rollback Trigger

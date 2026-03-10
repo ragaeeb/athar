@@ -1,7 +1,5 @@
 export const FEATURE_FLAGS = {
     useCharacterGlb: true,
-    useMilestoneIfc: false,
-    useTeacherGlb: false,
 } as const;
 
 export const BASE_PLAYER_SPEED_METERS_PER_SECOND = 45_000;
