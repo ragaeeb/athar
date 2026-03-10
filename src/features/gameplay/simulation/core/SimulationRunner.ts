@@ -34,6 +34,12 @@ const clampFrameDeltaMs = (frameDeltaMs: number, maxFrameDeltaMs: number) => {
     return Math.min(frameDeltaMs, maxFrameDeltaMs);
 };
 
+const appendEvents = (target: SimulationEvent[], source: SimulationEvent[]) => {
+    for (const event of source) {
+        target.push(event);
+    }
+};
+
 export const stepSimulation = ({ deltaMs, input, state }: SimulationStepInput): SimulationStepResult => {
     const events: SimulationEvent[] = [];
     let nextState = {
@@ -46,7 +52,7 @@ export const stepSimulation = ({ deltaMs, input, state }: SimulationStepInput): 
         ...nextState,
         player: movement.player,
     };
-    events.push.apply(events, movement.events);
+    appendEvents(events, movement.events);
 
     const encounters = applyEncounterSystems(nextState);
     nextState = {
@@ -54,21 +60,21 @@ export const stepSimulation = ({ deltaMs, input, state }: SimulationStepInput): 
         levelState: encounters.levelState,
         player: encounters.player,
     };
-    events.push.apply(events, encounters.events);
+    appendEvents(events, encounters.events);
 
     const objectives = applyObjectiveSystem(nextState, nextState.levelState);
     nextState = {
         ...nextState,
         levelState: objectives.levelState,
     };
-    events.push.apply(events, objectives.events);
+    appendEvents(events, objectives.events);
 
     const winCondition = applyWinConditionSystem(nextState, nextState.levelState);
     nextState = {
         ...nextState,
         levelState: winCondition.levelState,
     };
-    events.push.apply(events, winCondition.events);
+    appendEvents(events, winCondition.events);
 
     return {
         events,
@@ -123,7 +129,7 @@ export const createSimulationRunner = ({
             accumulatorMs -= fixedTimestepMs;
             steps += 1;
             didStep = true;
-            events.push(...result.events);
+            appendEvents(events, result.events);
         }
 
         if (steps === maxCatchUpSteps && accumulatorMs >= fixedTimestepMs) {

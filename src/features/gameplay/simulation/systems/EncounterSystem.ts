@@ -12,10 +12,10 @@ import {
     isWithinCompletedMilestoneSafeZone,
 } from '@/features/gameplay/simulation/systems/CollisionSystem';
 import {
-    OBSTACLE_HIT_COOLDOWN_MS,
-    SCATTER_DURATION_MS,
-    TOKEN_COLLECTION_RADIUS_METERS,
-} from '@/shared/constants/gameplay';
+    isObstacleHitOnCooldown,
+    resolveObstacleEncounterEffect,
+} from '@/features/gameplay/simulation/systems/obstacle-rules';
+import { SCATTER_DURATION_MS, TOKEN_COLLECTION_RADIUS_METERS } from '@/shared/constants/gameplay';
 import { generateScatterTokens } from '@/shared/geo';
 
 const collectNearbyTokens = (
@@ -75,10 +75,7 @@ const openTeacherDialogueIfNeeded = (
     }
 
     return {
-        events: [
-            { cue: 'teacher-encounter', type: 'audio' },
-            { teacher, type: 'dialogue-opened' },
-        ],
+        events: [{ teacher, type: 'dialogue-opened' }],
         player: {
             ...player,
             activeTeacher: teacher,
@@ -135,29 +132,58 @@ const applyObstacleEffects = (
     player: SimulationPlayerState,
     levelState: SimulationLevelState,
 ): { events: SimulationEvent[]; levelState: SimulationLevelState; player: SimulationPlayerState } => {
-    const obstacle = findTriggeredObstacle(player.coords, state.level);
-    if (
-        !obstacle ||
-        isWithinCompletedMilestoneSafeZone(player.coords, state.level, levelState.completedMilestoneIds) ||
-        obstacle.type === 'sandstorm' ||
-        state.nowMs - player.lastHitAt <= OBSTACLE_HIT_COOLDOWN_MS ||
-        player.hadithTokens <= 0
-    ) {
+    if (isObstacleHitOnCooldown(player.lastHitAt, state.nowMs)) {
         return { events: [], levelState, player };
     }
 
-    const baseLostCount = Math.max(1, Math.floor(player.hadithTokens / 2));
-    const lostCount = Math.min(
-        player.hadithTokens,
-        Math.max(1, Math.round(baseLostCount * state.character.obstacleDamageMultiplier)),
-    );
-    const scatteredTokens = generateScatterTokens(player.coords, lostCount, state.nowMs + SCATTER_DURATION_MS);
+    const obstacle = findTriggeredObstacle(player.coords, state.level, state.nowMs);
+    if (!obstacle || isWithinCompletedMilestoneSafeZone(player.coords, state.level, levelState.completedMilestoneIds)) {
+        return { events: [], levelState, player };
+    }
+
+    const effect = resolveObstacleEncounterEffect({
+        character: state.character,
+        hadithTokens: player.hadithTokens,
+        obstacle,
+    });
+
+    if (!effect) {
+        return { events: [], levelState, player };
+    }
+
+    const scatteredTokens =
+        effect.recoverableCount > 0
+            ? generateScatterTokens(player.coords, effect.recoverableCount, state.nowMs + SCATTER_DURATION_MS)
+            : [];
+    const nextScrambleUntil = Math.max(player.scrambleUntil, state.nowMs + effect.scrambleDurationMs);
+    const defeatEvent =
+        effect.effect === 'kill'
+            ? ([
+                  {
+                      obstacleId: obstacle.id,
+                      obstacleLabel: obstacle.label,
+                      obstacleType: obstacle.type,
+                      type: 'player-defeated' as const,
+                  },
+              ] as const)
+            : [];
 
     return {
         events: [
             { cue: 'obstacle-hit', type: 'audio' },
-            { cue: 'lose-token', type: 'audio' },
-            { lostCount, type: 'player-hit' },
+            ...(effect.lostCount > 0 ? ([{ cue: 'lose-token', type: 'audio' as const }] as const) : []),
+            ...(effect.lostCount > 0 ? ([{ lostCount: effect.lostCount, type: 'player-hit' as const }] as const) : []),
+            {
+                effect: effect.effect,
+                lostCount: effect.lostCount,
+                obstacleId: obstacle.id,
+                obstacleLabel: obstacle.label,
+                obstacleType: obstacle.type,
+                recoverableCount: effect.recoverableCount,
+                scrambleDurationMs: effect.scrambleDurationMs,
+                type: 'hazard-triggered' as const,
+            },
+            ...defeatEvent,
         ],
         levelState: {
             ...levelState,
@@ -165,11 +191,13 @@ const applyObstacleEffects = (
         },
         player: {
             ...player,
-            hadithTokens: Math.max(player.hadithTokens - lostCount, 0),
+            hadithTokens: Math.max(player.hadithTokens - effect.lostCount, 0),
             hitTokens: scatteredTokens,
-            isHit: lostCount > 0,
+            isHit: scatteredTokens.length > 0,
             lastHitAt: state.nowMs,
-            tokensLost: player.tokensLost + lostCount,
+            scrambleUntil: nextScrambleUntil,
+            speed: 0,
+            tokensLost: player.tokensLost + effect.lostCount,
         },
     };
 };
@@ -185,20 +213,28 @@ export const applyEncounterSystems = (
     const collected = collectNearbyTokens(state, player, levelState);
     player = collected.player;
     levelState = collected.levelState;
-    events.push.apply(events, collected.events);
+    for (const event of collected.events) {
+        events.push(event);
+    }
 
     const dialogue = openTeacherDialogueIfNeeded(state, player, levelState);
     player = dialogue.player;
-    events.push.apply(events, dialogue.events);
+    for (const event of dialogue.events) {
+        events.push(event);
+    }
 
     const milestone = completeMilestoneIfReached(state, player, levelState);
     levelState = milestone.levelState;
-    events.push.apply(events, milestone.events);
+    for (const event of milestone.events) {
+        events.push(event);
+    }
 
     const obstacle = applyObstacleEffects(state, player, levelState);
     player = obstacle.player;
     levelState = obstacle.levelState;
-    events.push.apply(events, obstacle.events);
+    for (const event of obstacle.events) {
+        events.push(event);
+    }
 
     return {
         events,

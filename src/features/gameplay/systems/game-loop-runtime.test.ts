@@ -7,7 +7,10 @@ import { advanceSimulationNowMs, getSimulationCharacterModifiers } from './game-
 describe('getSimulationCharacterModifiers', () => {
     it('applies the runtime walk-speed multiplier on top of the selected character speed multiplier', () => {
         expect(getSimulationCharacterModifiers(CHARACTER_CONFIGS.muslim, 3)).toEqual({
+            guardLossMultiplier: CHARACTER_CONFIGS.muslim.guardLossMultiplier,
             obstacleDamageMultiplier: CHARACTER_CONFIGS.muslim.obstacleDamageMultiplier,
+            rivalLossMultiplier: CHARACTER_CONFIGS.muslim.rivalLossMultiplier,
+            scrambleDurationMultiplier: CHARACTER_CONFIGS.muslim.scrambleDurationMultiplier,
             speedMultiplier: CHARACTER_CONFIGS.muslim.speedMultiplier * 3,
             tokenRadiusMultiplier: CHARACTER_CONFIGS.muslim.tokenRadiusMultiplier,
         });
@@ -15,7 +18,10 @@ describe('getSimulationCharacterModifiers', () => {
 
     it('leaves non-speed modifiers unchanged', () => {
         expect(getSimulationCharacterModifiers(CHARACTER_CONFIGS['abu-dawud'], 0.5)).toEqual({
+            guardLossMultiplier: CHARACTER_CONFIGS['abu-dawud'].guardLossMultiplier,
             obstacleDamageMultiplier: CHARACTER_CONFIGS['abu-dawud'].obstacleDamageMultiplier,
+            rivalLossMultiplier: CHARACTER_CONFIGS['abu-dawud'].rivalLossMultiplier,
+            scrambleDurationMultiplier: CHARACTER_CONFIGS['abu-dawud'].scrambleDurationMultiplier,
             speedMultiplier: CHARACTER_CONFIGS['abu-dawud'].speedMultiplier * 0.5,
             tokenRadiusMultiplier: CHARACTER_CONFIGS['abu-dawud'].tokenRadiusMultiplier,
         });

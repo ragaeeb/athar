@@ -36,6 +36,7 @@ const PERF_CAMERA_FOLLOW_SNAP_DEADZONE_METERS = 12_000;
 const PERF_MANUAL_CAMERA_INTERACTION_COOLDOWN_MS = 900;
 
 type AtharDevTools = {
+    levelId: string;
     teleportToTeacher: () => void;
     teleportToFinalMilestone: () => void;
     grantTokens: (count?: number) => void;
@@ -226,7 +227,10 @@ export const useAtharDevTools = (levelId: string | undefined) => {
                     return;
                 }
 
-                useLevelStore.getState().completeTeacher(level.winCondition.requiredTeachers[0] ?? '');
+                for (const teacherId of level.winCondition.requiredTeachers) {
+                    useLevelStore.getState().completeTeacher(teacherId);
+                }
+
                 useLevelStore.getState().completeMilestone(level.winCondition.finalMilestone);
                 useLevelStore.getState().addLockedHadith(level.winCondition.requiredHadith);
                 useLevelStore.getState().setComplete(true);
@@ -247,6 +251,7 @@ export const useAtharDevTools = (levelId: string | undefined) => {
             grantTokens: (count = 30) => {
                 usePlayerStore.getState().addToken(count);
             },
+            levelId,
             resetPerfMetrics: () => {
                 resetPerfMetrics();
             },

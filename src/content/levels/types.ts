@@ -1,4 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
+import type { AmbientAudioCue } from '@/content/audio/cues';
 
 export type Coords = {
     lat: number;
@@ -21,7 +22,7 @@ export type TeacherConfig = {
     historicalNote: string;
 };
 
-export type ObstacleType = 'viper' | 'sandstorm' | 'guard' | 'flood' | 'rival';
+export type ObstacleType = 'viper' | 'sandstorm' | 'guard' | 'flood' | 'rival' | 'scorpion';
 
 export type ObstacleConfig = {
     id: string;
@@ -104,7 +105,7 @@ export type LevelConfig = {
     completionNarration: string;
     completionContent: LevelCompletionContent;
     historicalNote: string;
-    ambientCue: 'ambient-desert' | 'ambient-city';
+    ambientCue: AmbientAudioCue;
 };
 
 export type ObjectiveKind = 'hadith' | 'teacher' | 'milestone';

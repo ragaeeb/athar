@@ -12,7 +12,6 @@ export {
     metersOffsetFromCoords,
     moveCoordsByBearing,
     offsetCoords,
-    preciseDistanceInMeters,
     worldDistanceInMeters,
 } from '@/shared/geo';
 

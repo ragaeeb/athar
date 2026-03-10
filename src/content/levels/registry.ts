@@ -38,6 +38,10 @@ export const LEVEL_REGISTRY_DIAGNOSTICS: LevelRegistryDiagnostic[] = levelValida
               ],
 );
 
+if (import.meta.env.DEV && LEVEL_REGISTRY_DIAGNOSTICS.length > 0) {
+    console.error('[athar:content] invalid levels omitted from registry', LEVEL_REGISTRY_DIAGNOSTICS);
+}
+
 export const LEVEL_REGISTRY: LevelConfig[] = levelValidationResults.flatMap(({ result }) =>
     result.success ? [result.data as LevelConfig] : [],
 );

@@ -118,10 +118,14 @@ export const DialogueBox = () => {
                 </h2>
                 <p className="mt-2 text-sm uppercase tracking-[0.3em] text-sand-100/60">{teacher.title}</p>
                 <Card tone="muted" className="mt-6 rounded-[1.5rem] bg-sand-50/8 p-5">
-                    <p className="font-dialogue text-2xl leading-10 text-sand-50">{teacher.hadith}</p>
-                    <p className="mt-4 text-sm text-sand-100/70">{teacher.hadithSource}</p>
+                    <p className="font-dialogue text-2xl leading-10 text-sand-50" dir="auto">
+                        {teacher.hadith}
+                    </p>
+                    <p className="mt-4 text-sm text-sand-100/70" dir="auto">
+                        {teacher.hadithSource}
+                    </p>
                 </Card>
-                <p className="mt-4 text-sm text-sand-100/75">
+                <p className="mt-4 text-sm text-sand-100/75" dir="auto">
                     Receive hadith now to preserve {currentTokens} carried tokens into this chapter's tally.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">

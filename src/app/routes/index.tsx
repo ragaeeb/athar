@@ -43,9 +43,9 @@ export const IndexRoute = () => {
                             Cross the classical Islamic world and preserve knowledge before it is lost.
                         </h1>
                         <p className="mt-5 max-w-2xl text-base leading-7 text-sand-100/75">
-                            This implementation now ships two playable desktop chapters: a character-select title
-                            screen, sequential map routes, scholar encounters, losable hadith tokens, and a
-                            chapter-specific completion flow.
+                            This implementation now ships five playable desktop chapters: a character-select title
+                            screen, sequential map routes, scholar encounters, losable hadith tokens, chapter-specific
+                            lighting moods, and a terminal completion flow that now closes the final compilation arc.
                         </p>
                         <div className="mt-8 flex flex-wrap gap-4">
                             <Button onClick={onStartAthar} className="px-6">

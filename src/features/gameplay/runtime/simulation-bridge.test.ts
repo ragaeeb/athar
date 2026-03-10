@@ -26,6 +26,27 @@ describe('SimulationBridge', () => {
         expect(result!.sequence).toBe(1);
     });
 
+    test('returns null when the latest sequence was already rendered', () => {
+        commitSimulationSample(sample(100));
+
+        const firstDrain = drainForPresentation(-1);
+
+        expect(firstDrain).not.toBeNull();
+        expect(drainForPresentation(firstDrain!.sequence)).toBeNull();
+    });
+
+    test('returns the next committed sample once the sequence advances', () => {
+        commitSimulationSample(sample(100));
+        const firstDrain = drainForPresentation(-1);
+
+        commitSimulationSample(sample(200));
+        const secondDrain = drainForPresentation(firstDrain!.sequence);
+
+        expect(secondDrain).not.toBeNull();
+        expect(secondDrain!.sequence).toBe(2);
+        expect(secondDrain!.state.positionMeters.z).toBe(200);
+    });
+
     test('sequence increments on each commit', () => {
         commitSimulationSample(sample(0));
         commitSimulationSample(sample(100));

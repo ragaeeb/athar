@@ -10,7 +10,10 @@ import { metersOffsetFromCoords } from '@/shared/geo';
 
 const createSimulationState = (): SimulationState => ({
     character: {
+        guardLossMultiplier: CHARACTER_CONFIGS.bukhari.guardLossMultiplier,
         obstacleDamageMultiplier: CHARACTER_CONFIGS.bukhari.obstacleDamageMultiplier,
+        rivalLossMultiplier: CHARACTER_CONFIGS.bukhari.rivalLossMultiplier,
+        scrambleDurationMultiplier: CHARACTER_CONFIGS.bukhari.scrambleDurationMultiplier,
         speedMultiplier: CHARACTER_CONFIGS.bukhari.speedMultiplier,
         tokenRadiusMultiplier: CHARACTER_CONFIGS.bukhari.tokenRadiusMultiplier,
     },
@@ -100,5 +103,21 @@ describe('MovementSystem', () => {
             positionMeters: { x: 10, z: 0 },
             speed: BASE_PLAYER_SPEED_METERS_PER_SECOND * state.character.speedMultiplier,
         });
+    });
+
+    it('reverses horizontal movement while preserving forward movement while scramble is active', () => {
+        const baselineState = createSimulationState();
+        const scrambledState = createSimulationState();
+        scrambledState.player.scrambleUntil = scrambledState.nowMs + 1_000;
+
+        const baseline = applyMovementStep(baselineState, { moveX: 1, moveZ: 1 }, 50);
+        const scrambled = applyMovementStep(scrambledState, { moveX: 1, moveZ: 1 }, 50);
+
+        expect(baseline.player.positionMeters.x).toBeGreaterThan(0);
+        expect(scrambled.player.positionMeters.x).toBeLessThan(0);
+        expect(baseline.player.positionMeters.z).toBeGreaterThan(0);
+        expect(scrambled.player.positionMeters.z).toBeGreaterThan(0);
+        expect(Math.abs(scrambled.player.positionMeters.x)).toBeCloseTo(Math.abs(baseline.player.positionMeters.x), 6);
+        expect(scrambled.player.positionMeters.z).toBeCloseTo(baseline.player.positionMeters.z, 6);
     });
 });

@@ -4,11 +4,21 @@ import { AUDIO_ASSETS, type AudioCue } from '@/content/audio/cues';
 
 type AudioEntry = {
     howl: Howl;
+    loopActive: boolean;
     ready: boolean;
 };
 
-const GAMEPLAY_WARMUP_CUES = (Object.keys(AUDIO_ASSETS) as AudioCue[]).filter((cue) => !cue.startsWith('ambient'));
+const OPTIONAL_AUDIO_CUES = new Set<AudioCue>(['footsteps-walk']);
+const LOOPING_CUES = new Set<AudioCue>(['ambient-city', 'ambient-desert', 'footsteps-walk']);
+const GAMEPLAY_WARMUP_CUES = (Object.keys(AUDIO_ASSETS) as AudioCue[]).filter(
+    (cue) => !cue.startsWith('ambient') && cue !== 'footsteps-walk',
+);
 const AUDIO_CUES = Object.keys(AUDIO_ASSETS) as AudioCue[];
+const AMBIENT_VOLUME = 0.35;
+const AMBIENT_FADE_IN_MS = 420;
+const AMBIENT_FADE_OUT_MS = 320;
+const FOOTSTEP_VOLUME = 0.28;
+const DEFAULT_SFX_VOLUME = 0.8;
 
 class AtharAudioManager {
     private registry = new Map<AudioCue, AudioEntry>();
@@ -21,7 +31,11 @@ class AtharAudioManager {
 
     private ambientCue: AudioCue | null = null;
 
+    private ambientStopTimeouts = new Map<AudioCue, number>();
+
     private enabled = true;
+
+    private bootstrapRequest: Promise<void> | null = null;
 
     bootstrap() {
         if (typeof window === 'undefined') {
@@ -29,7 +43,13 @@ class AtharAudioManager {
             return;
         }
 
-        void this.verifyConfiguredAssets();
+        if (this.assetCheckState === 'ready' || this.assetCheckState === 'disabled' || this.bootstrapRequest) {
+            return;
+        }
+
+        this.bootstrapRequest = this.verifyConfiguredAssets().finally(() => {
+            this.bootstrapRequest = null;
+        });
     }
 
     setEnabled(value: boolean) {
@@ -85,11 +105,17 @@ class AtharAudioManager {
     }
 
     private async verifyConfiguredAssets() {
-        const hasAllAssets = (
-            await Promise.all(AUDIO_CUES.map((cue) => this.assetResponseLooksUsable(AUDIO_ASSETS[cue])))
-        ).every(Boolean);
+        const assetResults = await Promise.all(
+            AUDIO_CUES.map(async (cue) => ({
+                cue,
+                valid: await this.assetResponseLooksUsable(AUDIO_ASSETS[cue]),
+            })),
+        );
+        const missingRequiredAssets = assetResults.filter(
+            (result) => !result.valid && !OPTIONAL_AUDIO_CUES.has(result.cue),
+        );
 
-        if (!hasAllAssets) {
+        if (missingRequiredAssets.length > 0) {
             this.assetCheckState = 'disabled';
             this.pendingActions = [];
             this.setEnabled(false);
@@ -97,17 +123,30 @@ class AtharAudioManager {
             return;
         }
 
+        for (const result of assetResults) {
+            if (!result.valid && OPTIONAL_AUDIO_CUES.has(result.cue)) {
+                this.unavailableCues.add(result.cue);
+            }
+        }
+
         this.assetCheckState = 'ready';
         this.flushPendingActions();
     }
 
     private disposeCue(cue: AudioCue) {
+        const pendingStopTimeout = this.ambientStopTimeouts.get(cue);
+        if (pendingStopTimeout !== undefined) {
+            window.clearTimeout(pendingStopTimeout);
+            this.ambientStopTimeouts.delete(cue);
+        }
+
         const current = this.registry.get(cue);
         if (!current) {
             return;
         }
 
         current.howl.stop();
+        current.loopActive = false;
         current.howl.unload();
         this.registry.delete(cue);
 
@@ -127,7 +166,7 @@ class AtharAudioManager {
         }
 
         const howl = new Howl({
-            loop: cue.startsWith('ambient'),
+            loop: LOOPING_CUES.has(cue),
             onload: () => {
                 const current = this.registry.get(cue);
                 if (current) {
@@ -154,11 +193,16 @@ class AtharAudioManager {
             },
             preload: false,
             src: [AUDIO_ASSETS[cue]],
-            volume: cue.startsWith('ambient') ? 0.35 : 0.8,
+            volume: cue.startsWith('ambient')
+                ? AMBIENT_VOLUME
+                : cue === 'footsteps-walk'
+                  ? FOOTSTEP_VOLUME
+                  : DEFAULT_SFX_VOLUME,
         });
 
         const entry = {
             howl,
+            loopActive: false,
             ready: false,
         };
 
@@ -194,28 +238,86 @@ class AtharAudioManager {
         });
     }
 
+    setLoopActive(cue: AudioCue, active: boolean) {
+        this.runWhenReady(() => {
+            if (cue.startsWith('ambient')) {
+                if (active) {
+                    this.setAmbient(cue);
+                } else if (this.ambientCue === cue) {
+                    this.stopAmbient();
+                }
+
+                return;
+            }
+
+            const entry = this.ensureCue(cue);
+            if (!entry || !LOOPING_CUES.has(cue)) {
+                return;
+            }
+
+            if (active) {
+                if (entry.loopActive) {
+                    return;
+                }
+
+                if (!entry.ready) {
+                    entry.howl.load();
+                }
+
+                entry.howl.play();
+                entry.loopActive = true;
+                return;
+            }
+
+            if (!entry.loopActive) {
+                return;
+            }
+
+            entry.howl.stop();
+            entry.loopActive = false;
+        });
+    }
+
     setAmbient(cue: AudioCue) {
         this.runWhenReady(() => {
             if (this.ambientCue === cue) {
                 return;
             }
 
-            if (this.ambientCue) {
-                const current = this.registry.get(this.ambientCue);
-                current?.howl.stop();
-            }
-
-            this.ambientCue = cue;
             const entry = this.ensureCue(cue);
             if (!entry) {
                 return;
+            }
+
+            if (this.ambientCue) {
+                const current = this.registry.get(this.ambientCue);
+                if (current) {
+                    const previousCue = this.ambientCue;
+                    current.howl.fade(AMBIENT_VOLUME, 0, AMBIENT_FADE_OUT_MS);
+                    const stopTimeoutId = window.setTimeout(() => {
+                        current.howl.stop();
+                        this.ambientStopTimeouts.delete(previousCue);
+                    }, AMBIENT_FADE_OUT_MS);
+
+                    this.ambientStopTimeouts.set(previousCue, stopTimeoutId);
+                }
+            }
+
+            this.ambientCue = cue;
+
+            const pendingStopTimeout = this.ambientStopTimeouts.get(cue);
+            if (pendingStopTimeout !== undefined) {
+                window.clearTimeout(pendingStopTimeout);
+                this.ambientStopTimeouts.delete(cue);
             }
 
             if (!entry.ready) {
                 entry.howl.load();
             }
 
+            entry.howl.volume(0);
             entry.howl.play();
+            entry.howl.fade(0, AMBIENT_VOLUME, AMBIENT_FADE_IN_MS);
         });
     }
 

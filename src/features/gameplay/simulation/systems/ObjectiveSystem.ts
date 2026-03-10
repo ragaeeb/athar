@@ -1,4 +1,5 @@
 import type { ObjectiveStatus } from '@/content/levels/types';
+import { nextObjectivesMatch } from '@/features/gameplay/objective-utils';
 import { buildObjectiveStatuses, getChapterHadithTotal } from '@/features/gameplay/objectives';
 import type {
     SimulationEvent,
@@ -15,34 +16,6 @@ const objectiveStatusesMatch = (left: ObjectiveStatus[], right: ObjectiveStatus[
             entry.detail === right[index]?.detail &&
             entry.id === right[index]?.id,
     );
-
-const objectivesMatch = (left: SimulationLevelState['nextObjective'], right: SimulationLevelState['nextObjective']) => {
-    if (left === right) {
-        return true;
-    }
-
-    if (!left || !right) {
-        return left === right;
-    }
-
-    if (left.id !== right.id) {
-        return false;
-    }
-
-    if ('density' in left && 'density' in right) {
-        return left.density === right.density;
-    }
-
-    if ('buildingType' in left || 'buildingType' in right) {
-        return 'buildingType' in left && 'buildingType' in right;
-    }
-
-    if ('hadith' in left || 'hadith' in right) {
-        return 'hadith' in left && 'hadith' in right;
-    }
-
-    return true;
-};
 
 export const applyObjectiveSystem = (
     state: SimulationState,
@@ -61,7 +34,7 @@ export const applyObjectiveSystem = (
         getChapterHadithTotal(levelState.lockedHadith, state.player.hadithTokens),
     );
 
-    const nextObjectiveMatch = objectivesMatch(levelState.nextObjective, nextObjective);
+    const nextObjectiveMatch = nextObjectivesMatch(levelState.nextObjective, nextObjective);
     const statusesMatch = nextObjectiveMatch && objectiveStatusesMatch(levelState.objectives, objectives);
 
     return {

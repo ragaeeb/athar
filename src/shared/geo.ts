@@ -21,8 +21,6 @@ export const worldDistanceInMeters = (point: Coords, origin: Coords) => {
     return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
 };
 
-export const preciseDistanceInMeters = (point: Coords, origin: Coords) => worldDistanceInMeters(point, origin);
-
 export const metersPerDegreeLongitude = (latitude: number) =>
     METERS_PER_DEGREE_LAT * Math.cos((latitude * Math.PI) / 180);
 

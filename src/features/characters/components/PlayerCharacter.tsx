@@ -1,7 +1,7 @@
 import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { FrontSide, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three';
+import { FrontSide, type Material, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHARACTER_CONFIGS, PLAYER_MODEL_PATH } from '@/content/characters/characters';
 import {
@@ -14,6 +14,8 @@ import { atharDebugLog } from '@/features/debug/debug';
 import { getPlayerRuntimeState } from '@/features/gameplay/runtime/player-runtime';
 import { useGameStore } from '@/features/gameplay/state/game.store';
 import { FEATURE_FLAGS, PLAYER_VISUAL_SCALE } from '@/shared/constants/gameplay';
+import { registerGLTFSceneModelSource } from '@/shared/three/gltf-loader-extensions';
+import { disposeSceneModelInstance } from '@/shared/three/gltf-scene-model-utils';
 
 type CharacterModelProps = {
     modelPath: string;
@@ -35,7 +37,22 @@ const normalizeStandardMaterial = (material: MeshStandardMaterial) => {
     material.needsUpdate = true;
 };
 
-const prepareCharacterSceneNode = (child: unknown) => {
+const cloneCharacterMaterial = (material: Material, materialCache: Map<Material, Material>) => {
+    const cachedMaterial = materialCache.get(material);
+    if (cachedMaterial) {
+        return cachedMaterial;
+    }
+
+    const clonedMaterial = material.clone();
+    if (clonedMaterial instanceof MeshStandardMaterial) {
+        normalizeStandardMaterial(clonedMaterial);
+    }
+
+    materialCache.set(material, clonedMaterial);
+    return clonedMaterial;
+};
+
+const prepareCharacterSceneNode = (child: unknown, materialCache: Map<Material, Material>) => {
     if (typeof child === 'object' && child !== null && 'frustumCulled' in child) {
         child.frustumCulled = false;
     }
@@ -48,22 +65,49 @@ const prepareCharacterSceneNode = (child: unknown) => {
     child.receiveShadow = false;
 
     const materials = Array.isArray(child.material) ? child.material : [child.material];
-    for (const material of materials) {
-        if (material instanceof MeshStandardMaterial) {
-            normalizeStandardMaterial(material);
-        }
+    if (materials.length === 0 || materials[0] === undefined) {
+        return;
     }
+
+    child.material = Array.isArray(child.material)
+        ? materials.map((material) => cloneCharacterMaterial(material, materialCache))
+        : cloneCharacterMaterial(materials[0], materialCache);
 };
 
 const CharacterModel = ({ modelPath }: CharacterModelProps) => {
     const gltf = useGLTF(modelPath);
-    const validAnimations = filterValidAnimationClips(gltf.animations);
-    const scene = clone(gltf.scene);
-    scene.traverse(prepareCharacterSceneNode);
+    const preparedSceneRef = useRef<{
+        animations: typeof gltf.animations;
+        scene: ReturnType<typeof clone>;
+        sourceScene: typeof gltf.scene;
+        validAnimations: ReturnType<typeof filterValidAnimationClips>;
+    } | null>(null);
+
+    if (
+        !preparedSceneRef.current ||
+        preparedSceneRef.current.sourceScene !== gltf.scene ||
+        preparedSceneRef.current.animations !== gltf.animations
+    ) {
+        const clonedScene = clone(gltf.scene);
+        const materialCache = new Map<Material, Material>();
+        clonedScene.traverse((child) => prepareCharacterSceneNode(child, materialCache));
+        preparedSceneRef.current = {
+            animations: gltf.animations,
+            scene: clonedScene,
+            sourceScene: gltf.scene,
+            validAnimations: filterValidAnimationClips(gltf.animations),
+        };
+    }
+
+    const { scene, validAnimations } = preparedSceneRef.current;
     const { actions } = useAnimations(validAnimations, scene);
     const { animationNames, idleAnimation, locomotionAnimation } = resolveCharacterAnimationNames(validAnimations);
     const activeAnimationNameRef = useRef<string | null>(null);
     const lastLoggedSpeedRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        registerGLTFSceneModelSource(modelPath, gltf.scene);
+    }, [gltf.scene, modelPath]);
 
     useEffect(() => {
         atharDebugLog('player', 'model-loaded', {
@@ -83,8 +127,10 @@ const CharacterModel = ({ modelPath }: CharacterModelProps) => {
             for (const action of Object.values(actions)) {
                 action?.stop();
             }
+
+            disposeSceneModelInstance(scene);
         };
-    }, [actions]);
+    }, [actions, scene]);
 
     useFrame(() => {
         const speed = getPlayerRuntimeState().speed;

@@ -1,9 +1,40 @@
 import { useGLTF } from '@react-three/drei';
+import type { Object3D } from 'three';
 import { Color, LinearSRGBColorSpace, MeshBasicMaterial, SRGBColorSpace } from 'three';
 import type { GLTFLoader, GLTFLoaderPlugin, GLTFParser } from 'three-stdlib';
 
+import { disposeGLTFSourceScene } from '@/shared/three/gltf-scene-model-utils';
+
 const PBR_SPEC_GLOSS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 const LOADER_PATCH_FLAG = '__atharPbrSpecGlossExtensionRegistered';
+const sourceScenesByModelPath = new Map<string, Object3D>();
+const BASIC_MATERIAL_UNSUPPORTED_KEYS = [
+    'aoMapIntensity',
+    'clearcoat',
+    'clearcoatMap',
+    'clearcoatNormalMap',
+    'clearcoatNormalScale',
+    'clearcoatRoughness',
+    'clearcoatRoughnessMap',
+    'ior',
+    'metalness',
+    'metalnessMap',
+    'roughness',
+    'roughnessMap',
+    'sheen',
+    'sheenColor',
+    'sheenColorMap',
+    'sheenRoughness',
+    'sheenRoughnessMap',
+    'specularIntensity',
+    'specularIntensityMap',
+    'specularColor',
+    'specularColorMap',
+    'thickness',
+    'thicknessMap',
+    'transmission',
+    'transmissionMap',
+] as const;
 
 type GLTFTextureInfo = {
     index: number;
@@ -69,6 +100,10 @@ class GLTFPBRSpecGlossinessFallbackExtension implements GLTFNamedLoaderPlugin {
             return Promise.resolve();
         }
 
+        for (const unsupportedKey of BASIC_MATERIAL_UNSUPPORTED_KEYS) {
+            delete materialParams[unsupportedKey];
+        }
+
         materialParams.color = new Color(1, 1, 1);
         materialParams.opacity = 1;
 
@@ -98,6 +133,20 @@ export const extendGLTFSceneLoader = (loader: GLTFLoaderLike) => {
 export const preloadGLTFSceneModel = (modelPath: string) => {
     useGLTF.clear(modelPath);
     useGLTF.preload(modelPath, true, true, extendGLTFSceneLoader);
+};
+
+export const registerGLTFSceneModelSource = (modelPath: string, scene: Object3D) => {
+    sourceScenesByModelPath.set(modelPath, scene);
+};
+
+export const evictGLTFSceneModel = (modelPath: string) => {
+    const sourceScene = sourceScenesByModelPath.get(modelPath);
+    if (sourceScene) {
+        disposeGLTFSourceScene(sourceScene);
+        sourceScenesByModelPath.delete(modelPath);
+    }
+
+    useGLTF.clear(modelPath);
 };
 
 export { GLTFPBRSpecGlossinessFallbackExtension };

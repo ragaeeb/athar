@@ -1,10 +1,13 @@
 export const DEFAULT_MOVEMENT_SPEED_MULTIPLIER = 1;
-const MIN_MOVEMENT_SPEED_MULTIPLIER = 0.1;
-const MAX_MOVEMENT_SPEED_MULTIPLIER = 20;
+export const MIN_MOVEMENT_SPEED_MULTIPLIER = 0.1;
+export const MAX_MOVEMENT_SPEED_MULTIPLIER = 20;
 
 export type GameLevelRuntimeOverrides = {
     movementSpeedMultiplier: number;
 };
+
+export const isMovementSpeedMultiplierWithinBounds = (value: number) =>
+    Number.isFinite(value) && value >= MIN_MOVEMENT_SPEED_MULTIPLIER && value <= MAX_MOVEMENT_SPEED_MULTIPLIER;
 
 export const parseMovementSpeedMultiplier = (value: string | null) => {
     if (value === null) {

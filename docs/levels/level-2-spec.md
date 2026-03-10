@@ -17,7 +17,7 @@ Partially implemented for Phase 2.
 - prove the post-refactor architecture can support a second fully playable chapter
 - require multiple teacher encounters in a single route
 - force the player to bank hadith more than once instead of carrying everything to the final stop
-- introduce a denser hazard rhythm than Level 1 without adding new systems
+- introduce a denser hazard rhythm than Level 1 through distinct rival, flood, and corrupt-guard behavior
 
 ## Authored Parameters
 
@@ -32,6 +32,10 @@ Partially implemented for Phase 2.
   - `rival`
   - `flood`
   - `guard`
+- implemented hazard roles:
+  - `rival`: steals a smaller permanent share of carried hadith
+  - `flood`: scrambles movement and washes a recoverable share back onto the road
+  - `guard`: confiscates a larger permanent share and briefly disrupts the route
 
 ## Route Beats
 

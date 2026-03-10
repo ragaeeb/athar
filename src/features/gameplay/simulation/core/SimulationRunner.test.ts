@@ -21,7 +21,10 @@ const createSimulationState = ({
     tokens?: ReturnType<typeof generateClusterTokens>;
 } = {}): SimulationState => ({
     character: {
+        guardLossMultiplier: CHARACTER_CONFIGS.bukhari.guardLossMultiplier,
         obstacleDamageMultiplier: CHARACTER_CONFIGS.bukhari.obstacleDamageMultiplier,
+        rivalLossMultiplier: CHARACTER_CONFIGS.bukhari.rivalLossMultiplier,
+        scrambleDurationMultiplier: CHARACTER_CONFIGS.bukhari.scrambleDurationMultiplier,
         speedMultiplier: CHARACTER_CONFIGS.bukhari.speedMultiplier,
         tokenRadiusMultiplier: CHARACTER_CONFIGS.bukhari.tokenRadiusMultiplier,
     },
@@ -105,6 +108,44 @@ describe('SimulationRunner', () => {
         expect(flushedRemainder.accumulatorMs).toBeCloseTo(0, 5);
         expect(flushedRemainder.state.nowMs).toBeCloseTo(initialState.nowMs + DEFAULT_FIXED_TIMESTEP_MS * 3, 5);
         expect(flushedRemainder.state.player.positionMeters.x).toBeGreaterThan(result.state.player.positionMeters.x);
+    });
+
+    it('fixed-timestep: produces the same authoritative result for equivalent elapsed time split across frames', () => {
+        const initialState = createSimulationState({ tokens: [] });
+        const movementInput = { moveX: 1, moveZ: 0 } as const;
+        const fixedTimestepMs = 10;
+
+        const chunkedRunner = createSimulationRunner({
+            fixedTimestepMs,
+            maxFrameDeltaMs: fixedTimestepMs * 10,
+        });
+        let chunkedState = initialState;
+        for (const frameDeltaMs of [fixedTimestepMs * 2, fixedTimestepMs * 3]) {
+            const result = chunkedRunner.advance({
+                frameDeltaMs,
+                input: movementInput,
+                state: chunkedState,
+            });
+            chunkedState = result.state;
+        }
+
+        const steadyRunner = createSimulationRunner({
+            fixedTimestepMs,
+            maxFrameDeltaMs: fixedTimestepMs * 10,
+        });
+        let steadyState = initialState;
+        for (let index = 0; index < 5; index += 1) {
+            const result = steadyRunner.advance({
+                frameDeltaMs: fixedTimestepMs,
+                input: movementInput,
+                state: steadyState,
+            });
+            steadyState = result.state;
+        }
+
+        expect(chunkedState.nowMs).toBeCloseTo(steadyState.nowMs, 5);
+        expect(chunkedState.player.positionMeters.x).toBeCloseTo(steadyState.player.positionMeters.x, 5);
+        expect(chunkedState.player.positionMeters.z).toBeCloseTo(steadyState.player.positionMeters.z, 5);
     });
 
     it('variable-timestep: steps once per advance with raw frameDelta', () => {
