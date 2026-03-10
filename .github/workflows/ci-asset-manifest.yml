@@ -1,0 +1,56 @@
+name: CI Asset Manifest
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  asset-manifest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify docs asset manifest matches public assets
+        run: |
+          set -euo pipefail
+
+          manifest="docs/assets/asset-manifest.md"
+          tmp_public="$(mktemp)"
+          tmp_manifest="$(mktemp)"
+          trap 'rm -f "$tmp_public" "$tmp_manifest"' EXIT
+
+          find public -type f | sort > "$tmp_public"
+
+          python3 - "$manifest" <<'PY' | sort -u > "$tmp_manifest"
+          import pathlib
+          import re
+          import sys
+
+          text = pathlib.Path(sys.argv[1]).read_text()
+          for path in re.findall(r'`(public/[^`]+)`', text):
+              print(path)
+          PY
+
+          echo 'Files under public/ not listed in the manifest:'
+          missing_files="$(comm -23 "$tmp_public" "$tmp_manifest" || true)"
+          if [ -n "$missing_files" ]; then
+            echo "$missing_files"
+          fi
+
+          echo
+          echo 'Manifest entries without a matching file:'
+          stale_entries="$(comm -13 "$tmp_public" "$tmp_manifest" || true)"
+          if [ -n "$stale_entries" ]; then
+            echo "$stale_entries"
+          fi
+
+          if [ -n "$missing_files$stale_entries" ]; then
+            echo
+            echo "Asset manifest drift detected."
+            exit 1
+          fi
