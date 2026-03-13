@@ -7,6 +7,7 @@ import { applyEncounterSystems } from '@/features/gameplay/simulation/systems/En
 import { resolveObstaclePatrolCoords } from '@/features/gameplay/simulation/systems/obstacle-patrol';
 import {
     COMPLETED_MILESTONE_SAFE_ZONE_RADIUS_METERS,
+    PLAYER_RUN_MAX_CHARGE_MS,
     TEACHER_INTERACTION_RADIUS_METERS,
 } from '@/shared/constants/gameplay';
 import { metersOffsetFromCoords, offsetCoords } from '@/shared/geo';
@@ -43,7 +44,7 @@ const createSimulationState = (overrides?: Partial<SimulationState>): Simulation
         isRunning: false,
         lastHitAt: 0,
         positionMeters: metersOffsetFromCoords(level1.origin, level1.origin),
-        runChargeMs: 2_500,
+        runChargeMs: PLAYER_RUN_MAX_CHARGE_MS,
         scrambleUntil: 0,
         speed: 0,
         tokensLost: 0,
