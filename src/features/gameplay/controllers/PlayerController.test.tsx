@@ -19,12 +19,12 @@ describe('PlayerController', () => {
 
         fireEvent.keyDown(window, { key: 'ArrowDown' });
         expect(getPressedKeys()).toEqual(['arrowdown']);
-        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: -1 });
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: -1, runRequested: false });
 
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(useGameplaySessionStore.getState().paused).toBe(true);
         expect(getPressedKeys()).toEqual([]);
-        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0 });
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0, runRequested: false });
 
         fireEvent.keyDown(window, { key: 'ArrowRight' });
         expect(getPressedKeys()).toEqual([]);
@@ -34,7 +34,20 @@ describe('PlayerController', () => {
 
         fireEvent.keyDown(window, { key: 'ArrowRight' });
         expect(getPressedKeys()).toEqual(['arrowright']);
-        expect(getMovementInputSnapshot()).toEqual({ moveX: 1, moveZ: 0 });
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 1, moveZ: 0, runRequested: false });
+    });
+
+    it('captures shift as a run request and clears it on keyup', () => {
+        render(<PlayerController />);
+
+        fireEvent.keyDown(window, { key: 'Shift' });
+        fireEvent.keyDown(window, { key: 'w' });
+
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 1, runRequested: true });
+
+        fireEvent.keyUp(window, { key: 'Shift' });
+
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 1, runRequested: false });
     });
 
     it('does not toggle pause while dialogue is open', () => {

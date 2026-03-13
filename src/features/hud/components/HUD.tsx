@@ -18,6 +18,7 @@ import {
     headingBetweenCoords,
     worldDistanceInMeters,
 } from '@/features/map/lib/geo';
+import { PLAYER_RUN_MAX_CHARGE_MS } from '@/shared/constants/gameplay';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Chip } from '@/shared/ui/Chip';
@@ -58,6 +59,8 @@ type NavigationTopBarProps = {
     level: LevelConfig;
     lockedHadith: number;
     objective: NextObjective;
+    runChargeMs: number;
+    running: boolean;
     teacherCount: number;
 };
 
@@ -91,6 +94,22 @@ const resolveNavigationStatus = (objective: NextObjective): NavigationStatus => 
 
 const navigationStatusesMatch = (left: NavigationStatus, right: NavigationStatus) =>
     left.directionLabel === right.directionLabel && left.distance === right.distance;
+
+const resolveRunTone = (runChargeMs: number, running: boolean) => {
+    if (running) {
+        return 'accent';
+    }
+
+    if (runChargeMs <= PLAYER_RUN_MAX_CHARGE_MS * 0.25) {
+        return 'warning';
+    }
+
+    if (runChargeMs >= PLAYER_RUN_MAX_CHARGE_MS * 0.95) {
+        return 'success';
+    }
+
+    return 'default';
+};
 
 const useNavigationStatus = (objective: NextObjective) => {
     const [navigation, setNavigation] = useState(() => resolveNavigationStatus(objective));
@@ -177,9 +196,9 @@ const Drawer = ({ side, title, open, onToggle, children }: DrawerProps) => {
 };
 
 const encounterToneClasses: Record<NonNullable<SessionEncounterFeedback>['tone'], string> = {
-    accent: 'border-gold-400/28 bg-gold-400/12 text-gold-200',
-    danger: 'border-rose-500/35 bg-rose-500/14 text-sand-50',
-    warning: 'border-[color:var(--color-ui-warning)]/35 bg-[color:var(--color-ui-warning)]/12 text-sand-50',
+    accent: 'border-teal-500/35 bg-ink-950/85 text-sand-50 shadow-[0_12px_40px_rgba(7,17,24,0.55)]',
+    danger: 'border-rose-400/40 bg-ink-950/88 text-sand-50 shadow-[0_12px_40px_rgba(7,17,24,0.55)]',
+    warning: 'border-gold-400/45 bg-ink-950/85 text-sand-50 shadow-[0_12px_40px_rgba(7,17,24,0.55)]',
 };
 
 const EncounterBanner = ({ feedback }: EncounterBannerProps) => {
@@ -229,11 +248,12 @@ const EncounterBanner = ({ feedback }: EncounterBannerProps) => {
 };
 
 const NavigationTopBar = memo(
-    ({ currentTokens, level, lockedHadith, objective, teacherCount }: NavigationTopBarProps) => {
+    ({ currentTokens, level, lockedHadith, objective, runChargeMs, running, teacherCount }: NavigationTopBarProps) => {
         const navigation = useNavigationStatus(objective);
         const objectiveDistanceMeters = objective
             ? worldDistanceInMeters(objective.coords, getPlayerRuntimeState().coords)
             : 0;
+        const runPercent = Math.round((runChargeMs / PLAYER_RUN_MAX_CHARGE_MS) * 100);
 
         useEffect(() => {
             atharDebugLog(
@@ -252,18 +272,19 @@ const NavigationTopBar = memo(
         }, [currentTokens, lockedHadith, navigation.directionLabel, navigation.distance, objective, teacherCount]);
 
         return (
-            <div className="pointer-events-none absolute top-4 left-24 z-20 right-4 flex justify-center lg:top-6 lg:left-32 lg:right-32">
-                <Card className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-full bg-ink-950/92 px-4 py-3">
-                    <div className="min-w-0">
+            <div className="pointer-events-none absolute top-4 left-4 right-4 z-20 flex justify-center lg:top-6 lg:left-24 lg:right-24">
+                <Card className="pointer-events-auto flex w-full max-w-4xl flex-col gap-4 rounded-[2.25rem] bg-ink-950/92 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
                         <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-gold-400">{level.name}</p>
                         <p className="truncate font-display text-lg text-sand-50">{level.subtitle}</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                         <Chip
                             tone={resolveHadithFeedbackTone(
                                 lockedHadith + currentTokens,
                                 level.winCondition.requiredHadith,
                             )}
+                            className="tabular-nums whitespace-nowrap"
                             aria-live="polite"
                             aria-atomic="true"
                             role="status"
@@ -272,11 +293,21 @@ const NavigationTopBar = memo(
                         </Chip>
                         <Chip
                             tone={resolveTeacherFeedbackTone(teacherCount, level.winCondition.requiredTeachers.length)}
+                            className="tabular-nums whitespace-nowrap"
                         >
                             {teacherCount}/{level.winCondition.requiredTeachers.length} teachers
                         </Chip>
-                        <Chip tone={resolveObjectiveFeedbackTone(Boolean(objective), objectiveDistanceMeters)}>
+                        <Chip
+                            tone={resolveObjectiveFeedbackTone(Boolean(objective), objectiveDistanceMeters)}
+                            className="min-w-[13rem] justify-center text-center tabular-nums whitespace-nowrap"
+                        >
                             {objective ? `${navigation.directionLabel} ${navigation.distance}` : 'Route complete'}
+                        </Chip>
+                        <Chip
+                            tone={resolveRunTone(runChargeMs, running)}
+                            className="min-w-[7rem] justify-center text-center tabular-nums whitespace-nowrap"
+                        >
+                            {running ? `Running ${runPercent}%` : `Run ${runPercent}%`}
                         </Chip>
                     </div>
                 </Card>
@@ -306,7 +337,9 @@ export const HUD = ({ level }: HUDProps) => {
     const objective = useLevelStore((state) => state.nextObjective);
     const objectives = useLevelStore((state) => state.objectives);
     const currentTokens = usePlayerStore((state) => state.hadithTokens);
+    const isRunning = usePlayerStore((state) => state.isRunning);
     const lockedHadith = useLevelStore((state) => state.lockedHadith);
+    const runChargeMs = usePlayerStore((state) => state.runChargeMs);
     const totalVerified = useGameStore((state) => state.totalHadithVerified);
     const teacherCount = useLevelStore((state) => state.completedTeacherIds.length);
     const encounterFeedback = useGameplaySessionStore((state) => state.encounterFeedback);
@@ -320,6 +353,8 @@ export const HUD = ({ level }: HUDProps) => {
                 level={level}
                 lockedHadith={lockedHadith}
                 objective={objective}
+                runChargeMs={runChargeMs}
+                running={isRunning}
                 teacherCount={teacherCount}
             />
             <EncounterBanner feedback={encounterFeedback} />
@@ -352,6 +387,9 @@ export const HUD = ({ level }: HUDProps) => {
                         <Card tone="muted" className="rounded-2xl p-4">
                             <p className="font-mono text-xs uppercase tracking-[0.3em] text-sand-100/60">Controls</p>
                             <p className="mt-2 text-sm text-sand-100/85">Move with `WASD` or arrow keys.</p>
+                            <p className="mt-2 text-sm text-sand-100/75">
+                                Hold `Shift` while moving to run until your charge is spent.
+                            </p>
                             <p className="mt-2 text-sm text-sand-100/75">Pause or resume with `Escape`.</p>
                         </Card>
                     </div>

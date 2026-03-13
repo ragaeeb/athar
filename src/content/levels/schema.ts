@@ -143,7 +143,6 @@ export const levelConfigSchema = z
             (index) => ['winCondition', 'requiredTeachers', index],
             'required teacher',
         );
-
         const teacherIds = new Set(config.teachers.map((teacher) => teacher.id));
         const milestoneIds = new Set(config.milestones.map((milestone) => milestone.id));
 

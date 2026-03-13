@@ -3,12 +3,14 @@ type KeyState = Record<string, boolean>;
 type MovementInput = {
     moveX: number;
     moveZ: number;
+    runRequested: boolean;
 };
 
 const keyState: KeyState = {};
 const touchState: MovementInput = {
     moveX: 0,
     moveZ: 0,
+    runRequested: false,
 };
 
 const clampAxis = (value: number) => Math.max(-1, Math.min(1, value));
@@ -20,11 +22,13 @@ export const setInputKeyPressed = (key: string, pressed: boolean) => {
 export const setTouchMovementInput = (movement: MovementInput) => {
     touchState.moveX = clampAxis(movement.moveX);
     touchState.moveZ = clampAxis(movement.moveZ);
+    touchState.runRequested = movement.runRequested;
 };
 
 export const clearTouchMovementInput = () => {
     touchState.moveX = 0;
     touchState.moveZ = 0;
+    touchState.runRequested = false;
 };
 
 export const clearInputState = () => {
@@ -44,4 +48,5 @@ export const getMovementInputSnapshot = (): MovementInput => ({
     moveZ: clampAxis(
         (keyState.w || keyState.arrowup ? 1 : 0) - (keyState.s || keyState.arrowdown ? 1 : 0) + touchState.moveZ,
     ),
+    runRequested: Boolean(keyState.shift || touchState.runRequested),
 });

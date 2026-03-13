@@ -46,7 +46,7 @@ describe('TouchControls', () => {
         fireEvent.pointerUp(pad, {
             pointerId: 1,
         });
-        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0 });
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0, runRequested: false });
     });
 
     it('releases pointer capture when a pointer cancel interrupts touch movement', async () => {
@@ -88,6 +88,6 @@ describe('TouchControls', () => {
         fireEvent.pointerCancel(pad, { pointerId: 9 });
 
         expect(releasePointerCapture).toHaveBeenCalledWith(9);
-        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0 });
+        expect(getMovementInputSnapshot()).toEqual({ moveX: 0, moveZ: 0, runRequested: false });
     });
 });

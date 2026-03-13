@@ -50,7 +50,13 @@ export const HadithTokenClusterInstances = ({ tokens }: HadithTokenClusterInstan
     return (
         <instancedMesh ref={meshRef} args={[undefined, undefined, tokens.length]} frustumCulled={false}>
             <icosahedronGeometry args={[0.45, 0]} />
-            <meshStandardMaterial color="#f4d35e" emissive="#f4d35e" emissiveIntensity={1.8} roughness={0.2} />
+            <meshStandardMaterial
+                color="#e2b04f"
+                emissive="#8a4e12"
+                emissiveIntensity={0.55}
+                roughness={0.25}
+                metalness={0.3}
+            />
         </instancedMesh>
     );
 };

@@ -14,23 +14,25 @@ describe('input-state', () => {
 
     it('combines keyboard and touch movement through the shared movement contract', () => {
         setInputKeyPressed('d', true);
-        setTouchMovementInput({ moveX: 0.25, moveZ: 0.5 });
+        setTouchMovementInput({ moveX: 0.25, moveZ: 0.5, runRequested: false });
 
         expect(getMovementInputSnapshot()).toEqual({
             moveX: 1,
             moveZ: 0.5,
+            runRequested: false,
         });
     });
 
     it('clears both keyboard and touch state together', () => {
         setInputKeyPressed('w', true);
-        setTouchMovementInput({ moveX: -0.5, moveZ: 0.25 });
+        setTouchMovementInput({ moveX: -0.5, moveZ: 0.25, runRequested: true });
 
         clearInputState();
 
         expect(getMovementInputSnapshot()).toEqual({
             moveX: 0,
             moveZ: 0,
+            runRequested: false,
         });
     });
 });

@@ -12,15 +12,18 @@ import {
 } from '@/features/gameplay/runtime/player-runtime';
 import { initializeSimulationBridge, resetSimulationBridge } from '@/features/gameplay/runtime/simulation-bridge';
 import type { SimulationPlayerState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { PLAYER_RUN_MAX_CHARGE_MS } from '@/shared/constants/gameplay';
 import { metersOffsetFromCoords } from '@/shared/geo';
 
 export type PlayerState = {
     hadithTokens: number;
     isHit: boolean;
+    isRunning: boolean;
     hitTokens: TokenState[];
     activeTeacher: TeacherConfig | null;
     dialogueOpen: boolean;
     scrambleUntil: number;
+    runChargeMs: number;
     lastHitAt: number;
     tokensLost: number;
     startedAt: number;
@@ -45,7 +48,9 @@ const initialPlayerState = {
     hadithTokens: 0,
     hitTokens: [] as TokenState[],
     isHit: false,
+    isRunning: false,
     lastHitAt: 0,
+    runChargeMs: PLAYER_RUN_MAX_CHARGE_MS,
     scrambleUntil: 0,
     startedAt: Date.now(),
     tokensLost: 0,
@@ -138,7 +143,9 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
                 state.hadithTokens === player.hadithTokens &&
                 state.hitTokens === player.hitTokens &&
                 state.isHit === player.isHit &&
+                state.isRunning === player.isRunning &&
                 state.lastHitAt === player.lastHitAt &&
+                state.runChargeMs === player.runChargeMs &&
                 state.scrambleUntil === player.scrambleUntil &&
                 state.tokensLost === player.tokensLost;
 
@@ -152,7 +159,9 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
                 hadithTokens: player.hadithTokens,
                 hitTokens: player.hitTokens,
                 isHit: player.isHit,
+                isRunning: player.isRunning,
                 lastHitAt: player.lastHitAt,
+                runChargeMs: player.runChargeMs,
                 scrambleUntil: player.scrambleUntil,
                 tokensLost: player.tokensLost,
             };

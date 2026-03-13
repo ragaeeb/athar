@@ -82,6 +82,7 @@ export const TouchControls = () => {
                         setTouchMovementInput({
                             moveX: movement.moveX,
                             moveZ: movement.moveZ,
+                            runRequested: false,
                         });
                         setKnobPosition({ x: movement.knobX, y: movement.knobY });
                     }}
@@ -98,6 +99,7 @@ export const TouchControls = () => {
                         setTouchMovementInput({
                             moveX: movement.moveX,
                             moveZ: movement.moveZ,
+                            runRequested: false,
                         });
                         setKnobPosition({ x: movement.knobX, y: movement.knobY });
                     }}
