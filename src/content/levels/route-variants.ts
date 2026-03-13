@@ -25,7 +25,6 @@ const scaleCluster = (cluster: HadithTokenCluster, origin: Coords, scale: number
 const scaleOptionalRadius = (radius: number | undefined) =>
     radius === undefined ? undefined : Math.max(Math.round(radius * COMPACT_ROUTE_SCALE), MIN_OBSTACLE_RADIUS_METERS);
 
-
 export const applyCompactRouteVariant = (level: LevelConfig): LevelConfig => {
     const scaledInitialViewCenter = scaleCoordsFromOrigin(
         {

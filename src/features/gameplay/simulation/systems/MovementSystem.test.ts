@@ -8,7 +8,6 @@ import * as movementUtils from '@/features/gameplay/simulation/systems/movement-
 import {
     BASE_PLAYER_SPEED_METERS_PER_SECOND,
     PLAYER_RUN_MAX_CHARGE_MS,
-    PLAYER_RUN_MIN_START_CHARGE_FRACTION,
     PLAYER_RUN_SPEED_MULTIPLIER,
 } from '@/shared/constants/gameplay';
 import { metersOffsetFromCoords } from '@/shared/geo';
