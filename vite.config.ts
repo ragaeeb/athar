@@ -1,15 +1,15 @@
 /// <reference types="vitest/config" />
 import { fileURLToPath } from 'node:url';
+import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
     plugins: [
-        react({
-            babel: {
-                plugins: ['babel-plugin-react-compiler'],
-            },
+        react(),
+        babel({
+            presets: [reactCompilerPreset()],
         }),
         tailwindcss(),
     ],

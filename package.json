@@ -27,6 +27,7 @@
     "devDependencies": {
         "@biomejs/biome": "^2.4.6",
         "@playwright/test": "^1.58.2",
+        "@rolldown/plugin-babel": "^0.2.0",
         "@semantic-release/changelog": "^6.0.3",
         "@semantic-release/git": "^10.0.1",
         "@tailwindcss/vite": "^4.2.1",
@@ -78,6 +79,7 @@
         "format": "biome check --write src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html",
         "lint": "biome check src package.json tsconfig.json vite.config.ts vitest.setup.ts playwright.config.ts index.html && node scripts/check-simulation-boundary.mjs",
         "lint:content-governance": "node scripts/check-content-governance.mjs",
+        "prepare": "git config core.hooksPath .githooks",
         "preview": "vite preview",
         "test": "vitest run",
         "test:e2e": "playwright test --grep-invert @perf",
