@@ -20,6 +20,7 @@ export type SimulationCharacterModifiers = {
 export type SimulationInputState = {
     moveX: number;
     moveZ: number;
+    runRequested: boolean;
 };
 
 export type SimulationPlayerState = {
@@ -30,8 +31,10 @@ export type SimulationPlayerState = {
     hadithTokens: number;
     hitTokens: TokenState[];
     isHit: boolean;
+    isRunning: boolean;
     lastHitAt: number;
     positionMeters: { x: number; z: number };
+    runChargeMs: number;
     scrambleUntil: number;
     speed: number;
     tokensLost: number;

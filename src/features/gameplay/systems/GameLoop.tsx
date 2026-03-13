@@ -132,8 +132,10 @@ const readSimulationPlayerState = (): SimulationPlayerState => {
         hadithTokens: playerState.hadithTokens,
         hitTokens: playerState.hitTokens,
         isHit: playerState.isHit,
+        isRunning: playerState.isRunning,
         lastHitAt: playerState.lastHitAt,
         positionMeters: authoritativeMotion?.positionMeters ?? { x: 0, z: 0 },
+        runChargeMs: playerState.runChargeMs,
         scrambleUntil: playerState.scrambleUntil,
         speed: authoritativeMotion?.speed ?? 0,
         tokensLost: playerState.tokensLost,
@@ -172,6 +174,15 @@ const readSimulationState = (movementSpeedMultiplier: number, nowMs: number): Si
     };
 };
 
+const showDefeatState = (event: Extract<SimulationEvent, { type: 'player-defeated' }>) => {
+    clearInputState();
+    useGameplaySessionStore.getState().showDefeat({
+        detail: `The ${event.obstacleLabel.toLowerCase()} closed the route before you could escape.`,
+        title: event.obstacleLabel,
+    });
+    syncFootstepLoop(false);
+};
+
 const applySimulationEvents = (events: SimulationEvent[]) => {
     const playedAudioCues = new Set<AudioCue>();
 
@@ -194,12 +205,7 @@ const applySimulationEvents = (events: SimulationEvent[]) => {
         }
 
         if (event.type === 'player-defeated') {
-            clearInputState();
-            useGameplaySessionStore.getState().showDefeat({
-                detail: `The ${event.obstacleLabel.toLowerCase()} closed the route before you could escape.`,
-                title: event.obstacleLabel,
-            });
-            syncFootstepLoop(false);
+            showDefeatState(event);
         }
     }
 };
@@ -216,7 +222,6 @@ export const GameLoop = ({ movementSpeedMultiplier = 1 }: GameLoopProps) => {
     const obstacleDiagnosticRef = useRef<ObstacleDiagnosticLogState | null>(null);
     const obstacleDiagnosticCheckAtMsRef = useRef(0);
     const simulationNowMsRef = useRef(0);
-
     useEffect(() => {
         const initialNowMs = Date.now();
         runnerRef.current.reset(initialNowMs);

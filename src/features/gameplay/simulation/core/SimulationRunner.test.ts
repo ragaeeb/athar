@@ -9,6 +9,7 @@ import {
     stepSimulation,
 } from '@/features/gameplay/simulation/core/SimulationRunner';
 import type { SimulationState } from '@/features/gameplay/simulation/core/SimulationTypes';
+import { PLAYER_RUN_MAX_CHARGE_MS } from '@/shared/constants/gameplay';
 import { generateClusterTokens, metersOffsetFromCoords } from '@/shared/geo';
 
 const createSimulationState = ({
@@ -47,8 +48,10 @@ const createSimulationState = ({
         hadithTokens: 0,
         hitTokens: [],
         isHit: false,
+        isRunning: false,
         lastHitAt: 0,
         positionMeters: metersOffsetFromCoords(coords, level1.origin),
+        runChargeMs: PLAYER_RUN_MAX_CHARGE_MS,
         scrambleUntil: 0,
         speed: 0,
         tokensLost: 0,
@@ -64,6 +67,7 @@ describe('SimulationRunner', () => {
             input: {
                 moveX: 0,
                 moveZ: 0,
+                runRequested: false,
             },
             state: initialState,
         });
@@ -85,6 +89,7 @@ describe('SimulationRunner', () => {
             input: {
                 moveX: 1,
                 moveZ: 0,
+                runRequested: false,
             },
             state: initialState,
         });
@@ -100,6 +105,7 @@ describe('SimulationRunner', () => {
             input: {
                 moveX: 1,
                 moveZ: 0,
+                runRequested: false,
             },
             state: result.state,
         });
@@ -112,7 +118,7 @@ describe('SimulationRunner', () => {
 
     it('fixed-timestep: produces the same authoritative result for equivalent elapsed time split across frames', () => {
         const initialState = createSimulationState({ tokens: [] });
-        const movementInput = { moveX: 1, moveZ: 0 } as const;
+        const movementInput = { moveX: 1, moveZ: 0, runRequested: false } as const;
         const fixedTimestepMs = 10;
 
         const chunkedRunner = createSimulationRunner({
@@ -154,7 +160,7 @@ describe('SimulationRunner', () => {
 
         const result = runner.advance({
             frameDeltaMs: 16.5,
-            input: { moveX: 1, moveZ: 0 },
+            input: { moveX: 1, moveZ: 0, runRequested: false },
             state: initialState,
         });
 
@@ -165,7 +171,7 @@ describe('SimulationRunner', () => {
 
         const secondResult = runner.advance({
             frameDeltaMs: 14.2,
-            input: { moveX: 1, moveZ: 0 },
+            input: { moveX: 1, moveZ: 0, runRequested: false },
             state: result.state,
         });
 
@@ -181,7 +187,7 @@ describe('SimulationRunner', () => {
 
         const result = runner.advance({
             frameDeltaMs: 500,
-            input: { moveX: 1, moveZ: 0 },
+            input: { moveX: 1, moveZ: 0, runRequested: false },
             state: initialState,
         });
 
@@ -198,7 +204,7 @@ describe('SimulationRunner', () => {
 
         const result = runner.advance({
             frameDeltaMs: 0,
-            input: { moveX: 1, moveZ: 0 },
+            input: { moveX: 1, moveZ: 0, runRequested: false },
             state: initialState,
         });
 

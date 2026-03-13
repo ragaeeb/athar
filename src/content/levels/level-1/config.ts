@@ -112,8 +112,8 @@ export const level1: LevelConfig = {
             coords: { lat: 36.97118217750629, lng: 63.80585907167137 },
             id: 'viper-khurasan-pass',
             label: 'Desert Viper',
-            patrolRadius: 30_000,
-            radius: 60_000,
+            patrolRadius: 18_000,
+            radius: 35_000,
             type: 'viper',
         },
         {

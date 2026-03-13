@@ -1,7 +1,7 @@
 import { a, useSpring } from '@react-spring/three';
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
-import type { Group } from 'three';
+import { BackSide, type Group } from 'three';
 
 import type { TokenState } from '@/content/levels/types';
 import { TOKEN_VISUAL_SCALE } from '@/shared/constants/gameplay';
@@ -38,8 +38,26 @@ export const HadithToken = ({ token }: HadithTokenProps) => {
     return (
         <a.group ref={groupRef} position-y={spring.y} scale={spring.scale.to((value) => value * TOKEN_VISUAL_SCALE)}>
             <mesh castShadow>
+                <icosahedronGeometry args={[0.5, 0]} />
+                <meshStandardMaterial
+                    color="#3a2a14"
+                    depthWrite={false}
+                    emissive="#24190c"
+                    emissiveIntensity={0.5}
+                    metalness={0.1}
+                    roughness={0.6}
+                    side={BackSide}
+                />
+            </mesh>
+            <mesh castShadow>
                 <icosahedronGeometry args={[0.45, 0]} />
-                <meshStandardMaterial color="#f4d35e" emissive="#f4d35e" emissiveIntensity={1.8} roughness={0.2} />
+                <meshStandardMaterial
+                    color="#e2b04f"
+                    emissive="#8a4e12"
+                    emissiveIntensity={0.55}
+                    roughness={0.25}
+                    metalness={0.3}
+                />
             </mesh>
         </a.group>
     );
