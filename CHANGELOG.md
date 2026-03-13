@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/ragaeeb/athar/compare/v1.0.0...v1.1.0) (2026-03-13)
+
+
+### Features
+
+* **run:** Add running feature ([#37](https://github.com/ragaeeb/athar/issues/37)) ([4185a31](https://github.com/ragaeeb/athar/commit/4185a31546a393d2561a59634a803478e2f20d8b))
+
 # 1.0.0 (2026-03-10)
 
 
